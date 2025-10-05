@@ -1,0 +1,28 @@
+{
+  "name": "myticket-be",
+  "version": "1.0.0",
+  "description": "Backend project using Node.js with ES Modules and MVC structure",
+  "type": "module",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "mvc",
+    "backend"
+  ],
+  "author": "Quang",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "mongodb": "^6.20.0",
+    "mongoose": "^8.19.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
