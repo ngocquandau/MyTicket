@@ -9,16 +9,16 @@ import {
   logoutUser
 } from '../controllers/userController.js';
 
-import { verifyToken } from '../middleware/auth.js';
+import { verifyAdmin, verifyToken } from '../middleware/auth.js';
 
 
 const router = express.Router();
 
-router.get('/', verifyToken, getAllUsers);
+router.get('/', verifyToken, verifyAdmin, getAllUsers);
 router.post('/', createUser);
 router.get('/profile', verifyToken, getUser);
-router.put('/:id', updateUser);
-router.delete('/:id', deleteUser);
+router.put('/:id', updateUser); // Chưa làm hạn chế fields chỉ admin mới được sửa
+router.delete('/:id', verifyToken, verifyAdmin, deleteUser);
 
 router.post('/login', loginUser);
 router.post('/logout', verifyToken, logoutUser);
