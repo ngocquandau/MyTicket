@@ -12,10 +12,10 @@ import { verifyAdmin, verifyToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.post('/', verifyToken, verifyAdmin, createOrganizer);
-router.get('/', verifyToken, verifyAdmin, getAllOrganizers);
-router.get('/:id', verifyToken, getOrganizer);
-router.put('/:id', updateOrganizer); // Chưa làm hạn chế fields chỉ admin mới được sửa
-router.delete('/:id', verifyToken, verifyAdmin, deleteOrganizer);
+router.post   ('/',     verifyToken, verifyAdmin, createOrganizer);
+router.get    ('/',     verifyToken, verifyAdmin, getAllOrganizers);
+router.get    ('/:id',  getOrganizer);
+router.put    ('/:id',  verifyToken, verifyAdmin, updateOrganizer);
+router.delete ('/:id',  verifyToken, verifyAdmin, deleteOrganizer);
 
 export default router;

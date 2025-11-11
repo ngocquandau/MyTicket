@@ -41,11 +41,28 @@ export const createUser = async (req, res) => {
 // Cập nhật user
 export const updateUser = async (req, res) => {
   try {
+    let userId = req.params.id;
+
+    // Nếu là route /profile thì dùng id của user trong token
+    if (!userId || req.path === '/profile') {
+      userId = req.user.id;
+    }
+
+    // Nếu không phải admin thì không cho chỉnh role
+    if (req.user.role !== 'admin' && 'role' in req.body) {
+      delete req.body.role;
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
+      userId,
       req.body,
-      { new: true }
+      { new: true, runValidators: true }
     );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     res.json(updatedUser);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -65,9 +82,14 @@ export const deleteUser = async (req, res) => {
 // Lấy user theo ID
 export const getUser = async (req, res) => {
   try {
-    // const user = await User.findById(req.params.id);
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    // Nếu route là /profile thì không có req.params.id → dùng id trong token
+    const userId = req.params.id || req.user.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     res.json(user);
   } catch (err) {
     res.status(400).json({ error: err.message });

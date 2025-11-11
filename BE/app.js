@@ -14,7 +14,7 @@ mongoose.connect('mongodb+srv://hoquanglong:MyTicket@cluster0.mbmb6yj.mongodb.ne
 .catch(err => console.error(err));
 
 // Routes
-app.use('/api/users', userRoutes);
+app.use('/api/user', userRoutes);
 app.use('/api/event', eventRoutes);
 app.use('/api/organizer', organizerRoutes);
 app.use('/api/ticket', ticketRoutes);

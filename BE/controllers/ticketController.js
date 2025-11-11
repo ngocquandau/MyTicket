@@ -31,17 +31,6 @@ export const createTicketClass = async (req, res) => {
   }
 };
 
-// API riêng cho ticket (nếu cần route)
-export const addTicket = async (req, res) => {
-  try {
-    const newTicket = new Ticket({ ...req.body });
-    await newTicket.save();
-    res.status(201).json(newTicket);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-};
-
 // Lấy tất cả Ticket
 export const getAllTicketClasses = async (req, res) => {
   try {
@@ -60,48 +49,82 @@ export const getAllTicketClasses = async (req, res) => {
   }
 };
 
-// Lấy tất cả Ticket của TicketClass cụ thể
-export const getAllTickets = async (req, res) => { 
-  try {
-    // console.log(req.Ticket.id);
-    const Tickets = await TicketClass.find();
-    res.json(Tickets);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
 
 // Lấy Ticket theo ID
-export const getTicket = async (req, res) => {
+export const getTicketClass = async (req, res) => {
   try {
-    // const Ticket = await Ticket.findById(req.params.id);
-    const ticket = await Ticket.findById(req.params.id);
-    if (!ticket) return res.status(404).json({ message: 'Ticket not found' });
-    res.json(ticket);
+    const tc = await TicketClass.findById(req.params.id).lean();
+    if (!tc) return res.status(404).json({ message: 'TicketClass not found' });
+
+    // Nếu seatType là 'reserved' thì lấy danh sách ticket tương ứng
+    if (tc.seatType === 'reserved') {
+      const tickets = await Ticket.find({ ticketClass: tc._id });
+      return res.json({ ...tc, ticketList: tickets });
+    }
+
+    // Nếu không phải reserved thì trả nguyên object
+    res.json(tc);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
 
 // Cập nhật Ticket
-export const updateTicket = async (req, res) => {
+export const updateTicketClass = async (req, res) => {
   try {
-    const updatedTicket = await Ticket.findByIdAndUpdate(
+    const { ticketList, ...ticketClassData } = req.body;
+    // Cập nhật thông tin TicketClass chính
+    const updatedTicketClass = await TicketClass.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true }
-    );
-    res.json(updatedTicket);
+      ticketClassData,
+      { new: true, runValidators: true }
+    ).lean();
+
+    if (!updatedTicketClass)
+      return res.status(404).json({ message: 'TicketClass not found' });
+
+    // Nếu là reserved và có gửi ticketList thì xử lý thêm
+    if (updatedTicketClass.seatType === 'reserved' && Array.isArray(ticketList)) {
+      // Xóa tất cả ticket cũ thuộc ticketClass này
+      await Ticket.deleteMany({ ticketClass: updatedTicketClass._id });
+
+      // Thêm lại danh sách ticket mới
+      const newTickets = ticketList.map(t => ({
+        ...t,
+        ticketClass: updatedTicketClass._id
+      }));
+      await Ticket.insertMany(newTickets);
+
+      // Lấy lại danh sách ticket mới để trả về
+      const tickets = await Ticket.find({ ticketClass: updatedTicketClass._id });
+      return res.json({ ...updatedTicketClass, ticketList: tickets });
+    }
+
+    // Nếu không có ticketList hoặc không phải reserved
+    res.json(updatedTicketClass);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
 
 // Xóa Ticket
-export const deleteTicket = async (req, res) => {
+export const deleteTicketClass = async (req, res) => {
   try {
-    await Ticket.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Ticket deleted' });
+    const ticketClass = await TicketClass.findById(req.params.id);
+
+    if (!ticketClass) {
+      return res.status(404).json({ message: 'TicketClass not found' });
+    }
+
+    // Nếu seatType là 'reserved' thì xóa toàn bộ ticket thuộc class này
+    if (ticketClass.seatType === 'reserved') {
+      await Ticket.deleteMany({ ticketClass: ticketClass._id });
+    }
+
+    // Xóa TicketClass chính
+    await TicketClass.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'TicketClass and related tickets deleted successfully' });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
