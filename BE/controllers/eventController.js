@@ -1,4 +1,6 @@
-import Event from '../models/Event.js';
+import Event        from '../models/Event.js';
+import TicketClass  from '../models/TicketClass.js';
+import Ticket       from '../models/Ticket.js';
 
 // Lấy tất cả Event
 export const getAllEvents = async (req, res) => {
@@ -63,5 +65,26 @@ export const getEvent = async (req, res) => {
     res.json(event);
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+};
+
+// Lấy tất cả TicketClass theo eventId
+export const getTicketClassesByEvent = async (req, res) => {
+  try {
+    const eventId = req.params.id;
+
+    const ticketClasses = await TicketClass.find({ event: eventId }).lean();
+
+    const results = await Promise.all(ticketClasses.map(async tc => {
+      if (tc.seatType === 'reserved') {
+        const tickets = await Ticket.find({ ticketClass: tc._id });
+        return { ...tc, ticketList: tickets };
+      }
+      return tc;
+    }));
+
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

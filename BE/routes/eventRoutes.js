@@ -4,7 +4,8 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
-  getEvent
+  getEvent, 
+  getTicketClassesByEvent
 } from '../controllers/eventController.js';
 
 import { verifyAdmin, verifyToken } from '../middleware/auth.js';
@@ -17,5 +18,7 @@ router.get    ('/',     verifyToken, verifyAdmin, getAllEvents);
 router.get    ('/:id',  getEvent);
 router.put    ('/:id',  verifyToken, verifyAdmin, updateEvent);
 router.delete ('/:id',  verifyToken, verifyAdmin, deleteEvent);
+
+router.get    ('/:id/tickets', getTicketClassesByEvent);
 
 export default router;
