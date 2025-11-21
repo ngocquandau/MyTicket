@@ -28,7 +28,8 @@ export const createUser = async (req, res) => {
     // Tạo user mới với password đã mã hóa
     const newUser = new User({
       ...req.body,
-      password: hashedPassword
+      password: hashedPassword,
+      role: 'user', // luôn là 'user' mặc định
     });
 
     await newUser.save();

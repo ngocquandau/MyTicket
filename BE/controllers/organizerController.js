@@ -1,4 +1,6 @@
-import Organizer from '../models/Organizer.js';
+import Organizer  from '../models/Organizer.js';
+import Event      from '../models/Event.js';
+
 
 // Lấy tất cả Organizer
 export const getAllOrganizers = async (req, res) => {
@@ -14,11 +16,6 @@ export const getAllOrganizers = async (req, res) => {
 // Tạo Organizer mới
 export const createOrganizer = async (req, res) => {
   try {
-    // // Hash password trước khi lưu
-    // const saltRounds = 10;
-    // const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
-
-    // Tạo Organizer mới với password đã mã hóa
     const newOrganizer = new Organizer({
       ...req.body
     });
@@ -63,5 +60,20 @@ export const getOrganizer = async (req, res) => {
     res.json(organizer);
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+};
+
+export const getEventsByOrganizer = async (req, res) => {
+  try {
+    const organizerId = req.params.id;
+    const events = await Event.find({ organizer: organizerId });
+
+    if (!events || events.length === 0) {
+      return res.status(404).json({ message: 'No events found for this organizer' });
+    }
+
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

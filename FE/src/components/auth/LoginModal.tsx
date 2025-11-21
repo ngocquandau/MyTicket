@@ -1,7 +1,11 @@
 import React from 'react';
+import { loginAPI } from "../../services/authService";
+import { saveToken } from "../../utils/auth";
+import { message } from "antd";
 import { Modal, Form, Input } from 'antd';
 import { EyeInvisibleOutlined, EyeOutlined, CloseOutlined } from '@ant-design/icons';
 import logo from '../../assets/myticket_logo.png';
+
 
 interface Props {
   open: boolean;
@@ -12,11 +16,24 @@ interface Props {
 const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick }) => {
   const [form] = Form.useForm();
 
+  // const onFinish = async (values: any) => {
+  //   // mock login - will integrate with API later
+  //   console.log('Login attempt:', values);
+  //   onClose();
+  // };
   const onFinish = async (values: any) => {
-    // mock login - will integrate with API later
-    console.log('Login attempt:', values);
+  try {
+    const res = await loginAPI(values);
+
+    saveToken(res.data.token);  // Lưu token
+
+    message.success("Đăng nhập thành công!");
     onClose();
-  };
+  } catch (err: any) {
+    message.error(err.response?.data?.error || "Lỗi đăng nhập");
+  }
+};
+
 
   return (
     <Modal

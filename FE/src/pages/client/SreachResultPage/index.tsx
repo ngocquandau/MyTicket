@@ -1,15 +1,13 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Typography, Input, Tag, Button } from 'antd';
+import { Typography, Tag, Button, message } from 'antd';
 import { CalendarOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import ClientLayout from '../../../layouts/ClientLayout';
-import { mockEvents, formatEventDate } from '../../../data/mockEvents';
+import { getAllEventsAPI } from '../../../services/eventService';
 
 const { Title, Text } = Typography;
-const { Search } = Input;
 
 function getOrganizerName(ev: any) {
-  // Hỗ trợ cả organizer là object hoặc string
   if (typeof ev.organizer === 'object' && ev.organizer?.name) return ev.organizer.name;
   if (typeof ev.organizerName === 'string') return ev.organizerName;
   return '';
@@ -24,38 +22,30 @@ function getMinPrice(tickets?: Array<{ price: string | number }>) {
   return `Từ ${Math.min(...nums).toLocaleString('vi-VN')} VND`;
 }
 
-const SreachResultPage: React.FC = () => {
+const SearchResultPage: React.FC = () => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const [events, setEvents] = React.useState<any[]>([]);
 
   const q = (params.get('q') || '').trim();
   const showAll = params.get('all') === '1';
 
-  const results = React.useMemo(() => {
-    if (showAll || q === '') return mockEvents;
-    const query = q.toLowerCase();
-    return mockEvents.filter(ev => {
-      const title = ev.title?.toLowerCase() || '';
-      const city = ev.location?.city?.toLowerCase() || '';
-      const org = getOrganizerName(ev).toLowerCase();
-      const genre = ev.genre?.toLowerCase() || '';
-      return (
-        title.includes(query) ||
-        city.includes(query) ||
-        org.includes(query) ||
-        genre.includes(query)
-      );
-    });
-  }, [q, showAll]);
+  React.useEffect(() => {
+    getAllEventsAPI()
+      .then(setEvents)
+      .catch(() => message.error('Không thể tải sự kiện'));
+  }, []);
 
-  const onSearch = (value: string) => {
-    const v = value.trim();
-    if (!v) {
-      setParams({ all: '1' });
-    } else {
-      setParams({ q: v });
-    }
-  };
+  const results = React.useMemo(() => {
+    if (showAll || q === '') return events;
+    const query = q.toLowerCase();
+    return events.filter(ev =>
+      ev.title?.toLowerCase().includes(query) ||
+      ev.location?.city?.toLowerCase().includes(query) ||
+      getOrganizerName(ev).toLowerCase().includes(query) ||
+      ev.genre?.toLowerCase().includes(query)
+    );
+  }, [q, showAll, events]);
 
   return (
     <ClientLayout>
@@ -68,8 +58,7 @@ const SreachResultPage: React.FC = () => {
                 <Text>Sự kiện phù hợp • {results.length} kết quả</Text>
               ) : (
                 <Text>
-                  Từ khóa: <Tag color="blue" className="align-middle">{q}</Tag> •
-                  <span className="ml-2">{results.length} kết quả</span>
+                  Từ khóa: <Tag color="blue">{q}</Tag> • <span>{results.length} kết quả</span>
                 </Text>
               )}
             </div>
@@ -91,7 +80,6 @@ const SreachResultPage: React.FC = () => {
                 className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                 onClick={() => navigate(`/event/${ev._id}`, { state: { event: ev } })}
               >
-                {/* Poster đồng nhất, hiển thị đầy đủ ảnh */}
                 <div className="h-64 bg-gray-100 flex items-center justify-center overflow-hidden">
                   <img
                     src={ev.posterURL}
@@ -102,28 +90,21 @@ const SreachResultPage: React.FC = () => {
 
                 <div className="p-4">
                   <h3 className="font-semibold text-lg mb-2 line-clamp-1">{ev.title}</h3>
-
                   <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                     <EnvironmentOutlined />
                     <span>{ev.location?.city || 'Đang cập nhật'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
                     <CalendarOutlined />
-                    <span>{formatEventDate(ev.startDateTime)}</span>
+                    <span>{new Date(ev.startDateTime).toLocaleDateString('vi-VN')}</span>
                   </div>
-
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-[#23A6F0]">
-                      {getMinPrice(ev.tickets)}
-                    </span>
+                    <span className="font-bold text-[#23A6F0]">{getMinPrice(ev.tickets)}</span>
                     <Button
                       type="primary"
                       size="small"
                       className="!bg-[#23A6F0]"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/event/${ev._id}`, { state: { event: ev } });
-                      }}
+                      onClick={(e) => { e.stopPropagation(); navigate(`/event/${ev._id}`, { state: { event: ev } }); }}
                     >
                       XEM CHI TIẾT
                     </Button>
@@ -138,4 +119,4 @@ const SreachResultPage: React.FC = () => {
   );
 };
 
-export default SreachResultPage;
+export default SearchResultPage;

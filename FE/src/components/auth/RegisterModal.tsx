@@ -1,7 +1,10 @@
 import React from 'react';
+import { registerAPI } from "../../services/authService";
+import { message } from "antd";
 import { Modal, Form, Input, DatePicker, Select } from 'antd';
 import { EyeInvisibleOutlined, EyeOutlined, CloseOutlined } from '@ant-design/icons';
 import logo from '../../assets/myticket_logo.png';
+import dayjs from "dayjs";
 
 interface Props {
   open: boolean;
@@ -11,6 +14,44 @@ interface Props {
 
 const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
   const [form] = Form.useForm();
+
+  // =============================
+  // Submit Register
+  // =============================
+  const onFinish = async (values: any) => {
+    try {
+      if (values.password !== values.confirmPassword) {
+        message.error("Mật khẩu xác nhận không khớp!");
+        return;
+      }
+
+      const payload = {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        gender: values.gender,
+        birthday: values.birthDate ? dayjs(values.birthDate).toISOString() : null,
+        email: values.email,
+        phoneNumber: values.phone || "",
+        password: values.password,
+
+        // BE yêu cầu location => tạm set mặc định, FE chưa có map
+        location: {
+          type: "Point",
+          coordinates: [0, 0],
+        }
+      };
+
+      const res = await registerAPI(payload);
+
+      if (res.status === 201) {
+        message.success("Đăng ký thành công!");
+        form.resetFields();
+        onLoginClick();
+      }
+    } catch (err: any) {
+      message.error(err.response?.data?.error || "Đăng ký thất bại");
+    }
+  };
 
   return (
     <Modal
@@ -33,7 +74,7 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
         <div className="w-2/3 p-4">
           <h2 className="text-xl font-semibold text-center mb-6">TẠO TÀI KHOẢN</h2>
           
-          <Form form={form} layout="vertical">
+          <Form form={form} layout="vertical" onFinish={onFinish}>
             {/* Personal Information Section */}
             <div className="mb-6">
               <h3 className="font-medium mb-4">Thông tin cá nhân *</h3>
@@ -45,6 +86,7 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
                   <Input placeholder="Tên" />
                 </Form.Item>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <Form.Item name="gender">
                   <Select placeholder="Giới tính">
@@ -52,10 +94,14 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
                     <Select.Option value="female">Nữ</Select.Option>
                   </Select>
                 </Form.Item>
+
                 <Form.Item name="birthDate">
-                  <DatePicker placeholder="Ngày sinh: dd/mm/yyyy" format="DD/MM/YYYY" className="w-full" />
+                  <DatePicker placeholder="Ngày sinh: dd/mm/yyyy"
+                    format="DD/MM/YYYY"
+                    className="w-full" />
                 </Form.Item>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <Form.Item name="phone">
                   <Input placeholder="Số điện thoại" />
@@ -69,17 +115,20 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
             {/* Account Information Section */}
             <div className="mb-6">
               <h3 className="font-medium mb-4">Thông tin tài khoản *</h3>
+
               <Form.Item name="email" rules={[{ required: true, type: 'email' }]}>
                 <Input placeholder="Địa chỉ Email" />
               </Form.Item>
+
               <Form.Item name="password" rules={[{ required: true }]}>
-                <Input.Password 
+                <Input.Password
                   placeholder="Mật khẩu"
                   iconRender={visible => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
                 />
               </Form.Item>
+
               <Form.Item name="confirmPassword" rules={[{ required: true }]}>
-                <Input.Password 
+                <Input.Password
                   placeholder="Xác nhận mật khẩu"
                   iconRender={visible => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
                 />
@@ -87,7 +136,10 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
             </div>
 
             <Form.Item>
-              <button className="w-full bg-[#23A6F0] text-white py-2 rounded hover:bg-[#1890ff] transition-colors">
+              <button
+                type="submit"
+                className="w-full bg-[#23A6F0] text-white py-2 rounded hover:bg-[#1890ff] transition-colors"
+              >
                 Đăng ký
               </button>
             </Form.Item>
