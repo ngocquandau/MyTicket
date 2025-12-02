@@ -4,6 +4,9 @@ import userRoutes from './routes/userRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
 import organizerRoutes  from './routes/organizerRoutes.js';
 import ticketRoutes from './routes/ticketRoutes.js';
+import voucherRoutes from './routes/voucherRoutes.js';
+import interactionRoutes from './routes/interactionRoutes.js';
+
 
 const app = express();
 app.use(express.json());
@@ -18,6 +21,8 @@ app.use('/api/user', userRoutes);
 app.use('/api/event', eventRoutes);
 app.use('/api/organizer', organizerRoutes);
 app.use('/api/ticket', ticketRoutes);
+app.use('/api/voucher', voucherRoutes);
+app.use('/api/interaction', interactionRoutes);
 // app.use('/api/ticketClass', ticketRoutes);
 
 // Khởi chạy server
