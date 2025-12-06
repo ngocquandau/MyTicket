@@ -8,8 +8,8 @@ import organizerRoutes from './routes/organizerRoutes.js';
 import ticketRoutes from './routes/ticketRoutes.js';
 import voucherRoutes from './routes/voucherRoutes.js';
 import interactionRoutes from './routes/interactionRoutes.js';
-import purchaseRoutes from './routes/purchaseRoutes.js'; // Mới
-import paymentRoutes from './routes/paymentRoutes.js';   // Mới
+import purchaseRoutes from './routes/purchaseRoutes.js'; 
+import paymentRoutes from './routes/paymentRoutes.js';   
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -18,10 +18,9 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(cors()); // Cho phép Frontend (localhost:3001...) gọi API
+app.use(cors());
 
-// Kết nối MongoDB (Dùng biến môi trường cho an toàn)
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://hoquanglong:MyTicket@cluster0.mbmb6yj.mongodb.net/myticket?retryWrites=true&w=majority';
+const MONGO_URI = process.env.MONGO_URI ;
 mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error(' MongoDB Connection Error:', err));
