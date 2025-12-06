@@ -1,5 +1,4 @@
 import User from '../models/User.js';
-// import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
@@ -10,7 +9,6 @@ const SECRET_KEY = process.env.SECRET_KEY;
 // Lấy tất cả user
 export const getAllUsers = async (req, res) => {
   try {
-    // console.log(req.user.id);
     const users = await User.find();
     res.json(users);
   } catch (err) {
@@ -52,6 +50,12 @@ export const updateUser = async (req, res) => {
     // Nếu không phải admin thì không cho chỉnh role
     if (req.user.role !== 'admin' && 'role' in req.body) {
       delete req.body.role;
+    }
+
+    // ✅ QUAN TRỌNG: Nếu cập nhật password, cần phải hash lại
+    if (req.body.password) {
+      const saltRounds = 10;
+      req.body.password = await bcrypt.hash(req.body.password, saltRounds);
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -97,12 +101,14 @@ export const getUser = async (req, res) => {
   }
 };
 
+// Đăng nhập user
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Tìm user theo email
-    const user = await User.findOne({ email });
+    // ✅ SỬA LỖI: Thêm .select('+password') để lấy trường password ẩn
+    const user = await User.findOne({ email }).select('+password');
+    
     if (!user) {
       return res.status(401).json({ error: 'Email không tồn tại' });
     }
@@ -132,6 +138,7 @@ export const loginUser = async (req, res) => {
   }
 };
 
+// Đăng xuất user
 export const logoutUser = async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];

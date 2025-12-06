@@ -6,98 +6,86 @@ import { Modal, Form, Input } from 'antd';
 import { EyeInvisibleOutlined, EyeOutlined, CloseOutlined } from '@ant-design/icons';
 import logo from '../../assets/myticket_logo.png';
 
-
 interface Props {
   open: boolean;
   onClose: () => void;
   onRegisterClick: () => void;
+  onLoginSuccess?: () => void; // ✅ Thêm dòng này (dấu ? để là optional)
 }
 
-const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick }) => {
+const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick, onLoginSuccess }) => {
   const [form] = Form.useForm();
 
-  // const onFinish = async (values: any) => {
-  //   // mock login - will integrate with API later
-  //   console.log('Login attempt:', values);
-  //   onClose();
-  // };
   const onFinish = async (values: any) => {
-  try {
-    const res = await loginAPI(values);
-
-    saveToken(res.data.token);  // Lưu token
-
-    message.success("Đăng nhập thành công!");
-    onClose();
-  } catch (err: any) {
-    message.error(err.response?.data?.error || "Lỗi đăng nhập");
-  }
-};
-
+    try {
+      const res = await loginAPI(values);
+      saveToken(res.data.token); // Lưu token
+      message.success("Đăng nhập thành công!");
+      
+      if (onLoginSuccess) {
+        onLoginSuccess(); // ✅ Gọi callback nếu có
+      }
+      
+      onClose();
+    } catch (err: any) {
+      message.error(err.response?.data?.error || "Lỗi đăng nhập");
+    }
+  };
 
   return (
     <Modal
       open={open}
       onCancel={onClose}
       footer={null}
-      width={900}
+      width={800} // Giảm width một chút cho cân đối
       closeIcon={<CloseOutlined className="text-gray-500" />}
       centered
     >
-      <div className="flex">
-        {/* Logo section - Left side */}
-        <div className="w-1/3 bg-[#E6F7FF] p-2 flex items-center justify-center">
+      <div className="flex flex-col md:flex-row"> {/* Responsive flex */}
+        {/* Logo section */}
+        <div className="w-full md:w-1/3 bg-[#E6F7FF] p-6 flex items-center justify-center rounded-l-lg">
           <div className="text-center">
-            <img src={logo} alt="MyTicket Logo" className="w-40 mx-auto mb-4" />
+            <img src={logo} alt="MyTicket Logo" className="w-32 mx-auto mb-4" onError={(e) => e.currentTarget.style.display='none'} />
+            <h3 className="text-[#23A6F0] font-bold text-xl">MyTicket</h3>
           </div>
         </div>
 
-        {/* Form section - Right side */}
-        <div className="w-2/3 p-2">
-          <h2 className="text-xl font-semibold text-center mb-6">ĐĂNG NHẬP</h2>
+        {/* Form section */}
+        <div className="w-full md:w-2/3 p-8">
+          <h2 className="text-2xl font-semibold text-center mb-6 text-[#23A6F0]">ĐĂNG NHẬP</h2>
           
           <Form
             form={form}
             layout="vertical"
             onFinish={onFinish}
-            className="max-w-md mx-auto"
+            className="w-full"
+            size="large"
           >
-            <div className="mb-6">
-              <h3 className="font-medium mb-4">Thông tin tài khoản *</h3>
-              
-              <Form.Item 
-                name="email" 
-                rules={[
-                  { required: true, message: 'Vui lòng nhập email' },
-                  { type: 'email', message: 'Email không hợp lệ' }
-                ]}
-              >
-                <Input 
-                  placeholder="Địa chỉ Email" 
-                  size="large"
-                  className="rounded"
-                />
-              </Form.Item>
+            <Form.Item 
+              name="email" 
+              rules={[
+                { required: true, message: 'Vui lòng nhập email' },
+                { type: 'email', message: 'Email không hợp lệ' }
+              ]}
+            >
+              <Input placeholder="Email" className="rounded-md" />
+            </Form.Item>
 
-              <Form.Item
-                name="password"
-                rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}
-              >
-                <Input.Password 
-                  placeholder="Mật khẩu"
-                  size="large"
-                  className="rounded"
-                  iconRender={visible => (
-                    visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
-                  )}
-                />
-              </Form.Item>
-            </div>
+            <Form.Item
+              name="password"
+              rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}
+            >
+              <Input.Password 
+                placeholder="Mật khẩu"
+                className="rounded-md"
+                iconRender={visible => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
+              />
+            </Form.Item>
 
-            <Form.Item className="mb-2">
+            <Form.Item className="mb-4">
               <button
                 type="submit"
-                className="w-full bg-[#23A6F0] text-white py-2 rounded hover:bg-[#1890ff] transition-colors h-10"
+                className="w-full bg-[#23A6F0] text-white py-2 rounded-md hover:bg-[#1890ff] font-semibold transition-colors"
               >
                 Đăng nhập
               </button>
@@ -111,7 +99,7 @@ const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick }) => {
                   form.resetFields();
                   onRegisterClick();
                 }}
-                className="text-[#23A6F0] hover:underline"
+                className="text-[#23A6F0] font-medium hover:underline"
               >
                 Đăng ký ngay
               </button>

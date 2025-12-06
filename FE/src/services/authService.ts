@@ -1,6 +1,7 @@
 import axiosClient from "./axiosClient";
 
-const API_URL = "http://localhost:3000/api/user";
+const USER_API_ROUTE = "/api/user";
 
-export const loginAPI = (data) => axiosClient.post("/api/user/login", data);
-export const registerAPI = (data) => axiosClient.post("/api/user", data);
+// Gán kiểu dữ liệu cho 'data'
+export const loginAPI = (data: any) => axiosClient.post(`${USER_API_ROUTE}/login`, data);
+export const registerAPI = (data: any) => axiosClient.post(USER_API_ROUTE, data);

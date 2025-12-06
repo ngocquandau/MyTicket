@@ -1,11 +1,12 @@
-import Event from '../models/Event.js';
-import TicketClass from '../models/TicketClass.js';
-import Ticket from '../models/Ticket.js';
+import Event        from '../models/Event.js';
+import TicketClass  from '../models/TicketClass.js';
+import Ticket       from '../models/Ticket.js';
 
 // Lấy tất cả Event
 export const getAllEvents = async (req, res) => {
   try {
-    const Events = await Event.find().lean();
+    // console.log(req.Event.id);
+    const Events = await Event.find();
     res.json(Events);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -15,7 +16,15 @@ export const getAllEvents = async (req, res) => {
 // Tạo Event mới
 export const createEvent = async (req, res) => {
   try {
-    const newEvent = new Event({ ...req.body });
+    // // Hash password trước khi lưu
+    // const saltRounds = 10;
+    // const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
+
+    // Tạo Event mới với password đã mã hóa
+    const newEvent = new Event({
+      ...req.body
+    });
+
     await newEvent.save();
     res.status(201).json(newEvent);
   } catch (err) {
@@ -47,29 +56,15 @@ export const deleteEvent = async (req, res) => {
   }
 };
 
-// Lấy Event theo ID (kèm TicketClass + ticketList)
+// Lấy Event theo ID
 export const getEvent = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id).lean();
+    // const Event = await Event.findById(req.params.id);
+    const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ message: 'Event not found' });
-
-    // Lấy TicketClass của Event
-    const ticketClasses = await TicketClass.find({ event: event._id }).lean();
-
-    // Nếu seatType = reserved thì populate ticketList
-    const ticketClassesWithTickets = await Promise.all(ticketClasses.map(async tc => {
-      if (tc.seatType === 'reserved') {
-        const tickets = await Ticket.find({ ticketClass: tc._id }).lean();
-        return { ...tc, ticketList: tickets };
-      }
-      return tc;
-    }));
-
-    event.ticketClasses = ticketClassesWithTickets;
-
     res.json(event);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 };
 
@@ -77,11 +72,12 @@ export const getEvent = async (req, res) => {
 export const getTicketClassesByEvent = async (req, res) => {
   try {
     const eventId = req.params.id;
+
     const ticketClasses = await TicketClass.find({ event: eventId }).lean();
 
     const results = await Promise.all(ticketClasses.map(async tc => {
       if (tc.seatType === 'reserved') {
-        const tickets = await Ticket.find({ ticketClass: tc._id }).lean();
+        const tickets = await Ticket.find({ ticketClass: tc._id });
         return { ...tc, ticketList: tickets };
       }
       return tc;

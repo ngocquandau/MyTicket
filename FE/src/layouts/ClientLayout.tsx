@@ -1,5 +1,5 @@
-import React from 'react';
-import { Typography } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Typography, message, Dropdown, MenuProps, Avatar } from 'antd'; // Thêm Dropdown, Avatar
 import { Link, useNavigate } from 'react-router-dom';
 import {
   QuestionCircleOutlined,
@@ -9,28 +9,69 @@ import {
   FacebookOutlined,
   TwitterOutlined,
   SearchOutlined,
-  FilterOutlined,
   CreditCardOutlined,
   UserOutlined,
+  LogoutOutlined, // Icon đăng xuất
 } from '@ant-design/icons';
 import Footer from '../components/Footer';
-import RegisterModal from '../components/auth/RegisterModal';
-import LoginModal from '../components/auth/LoginModal';
+import RegisterModal from '../components/auth/RegisterModal'; // Sửa lại đường dẫn import đúng case
+import LoginModal from '../components/auth/LoginModal';       // Sửa lại đường dẫn import đúng case
 import logo from '../assets/myticket_logo.png';
 
 const { Title } = Typography;
 
 const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isLoginOpen, setIsLoginOpen] = React.useState(false);
-  const [isRegisterOpen, setIsRegisterOpen] = React.useState(false);
-  const [keyword, setKeyword] = React.useState(''); // search keyword
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // State kiểm tra đăng nhập
   const navigate = useNavigate();
+
+  // Kiểm tra token khi component mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    setIsLoggedIn(!!token); // Chuyển đổi sang boolean
+  }, []); // Chỉ chạy 1 lần khi mount (hoặc thêm dependencies nếu token thay đổi động)
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsLoggedIn(false);
+    message.success('Đăng xuất thành công');
+    navigate('/');
+  };
 
   const doSearch = React.useCallback(() => {
     const q = keyword.trim();
     if (q) navigate(`/search?q=${encodeURIComponent(q)}`);
     else navigate('/search?all=1');
   }, [keyword, navigate]);
+
+  // Xử lý khi bấm "Vé của tôi"
+  const handleMyTicketsClick = (e: React.MouseEvent) => {
+    if (!isLoggedIn) {
+      e.preventDefault(); // Chặn chuyển trang
+      message.info('Vui lòng đăng nhập để xem vé của bạn');
+      setIsLoginOpen(true); // Mở modal login
+    }
+  };
+
+  // Menu Dropdown cho Avatar
+  const userMenu: MenuProps['items'] = [
+    {
+      key: '1',
+      label: (
+        <Link to="/profile">Thông tin tài khoản</Link>
+      ),
+      icon: <UserOutlined />,
+    },
+    {
+      key: '2',
+      label: 'Đăng xuất',
+      icon: <LogoutOutlined />,
+      onClick: handleLogout,
+      danger: true, // Màu đỏ cho nút đăng xuất
+    },
+  ];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -39,107 +80,123 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div className="text-xs flex items-center gap-4">
             <div className="flex items-center gap-2">
-                <QuestionCircleOutlined />
-                <span className='text-sx'>Hỗ trợ</span>
+              <QuestionCircleOutlined />
+              <span>Hỗ trợ</span>
             </div>
             <div className="flex items-center gap-2">
-                <MailOutlined />
-                <span className='text-sx'>support@myticket.vn</span>
+              <MailOutlined />
+              <span>support@myticket.vn</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <InstagramOutlined />
-            <YoutubeOutlined />
-            <FacebookOutlined />
-            <TwitterOutlined />
+          <div className="flex items-center gap-3 text-lg">
+            <InstagramOutlined className="hover:text-[#0D99FF] cursor-pointer" />
+            <YoutubeOutlined className="hover:text-[#0D99FF] cursor-pointer" />
+            <FacebookOutlined className="hover:text-[#0D99FF] cursor-pointer" />
+            <TwitterOutlined className="hover:text-[#0D99FF] cursor-pointer" />
           </div>
         </div>
       </div>
 
       {/* Header */}
-      <header className="py-4 bg-white shadow">
+      <header className="py-4 bg-white shadow sticky top-0 z-50">
         <div className="container mx-auto px-6 flex items-center justify-between">
           
-          {/* Cột 1: Logo (Giữ nguyên kích thước tối thiểu) */}
+          {/* Cột 1: Logo */}
           <div className="min-w-[220px] flex items-center gap-2">
             <Link to="/" className="flex items-center gap-2 no-underline">
-              <img src={logo} alt="logo" className="h-8 w-auto" />
+              <img src={logo} alt="logo" className="h-10 w-auto" />
               <Title level={3} className="!m-0 !text-[#0D99FF] !font-bold">MYTICKET</Title>
             </Link>
           </div>
           
-          {/* Cột 2: Thanh tìm kiếm (Mở rộng để chiếm phần lớn không gian giữa) */}
+          {/* Cột 2: Thanh tìm kiếm */}
           <div className="flex-1 flex justify-center mx-6"> 
             <div className="relative flex items-center w-full max-w-[600px]">
               <input
-                className="w-full h-10 pl-4 pr-20 rounded-full border border-gray-300 focus:border-[#23A6F0] focus:outline-none transition-colors"
-                placeholder="Nhập tên sự kiện hoặc tên đơn vị tổ chức..."
+                className="w-full h-10 pl-4 pr-12 rounded-full border border-gray-300 focus:border-[#23A6F0] focus:outline-none transition-colors shadow-sm"
+                placeholder="Tìm sự kiện, nghệ sĩ..."
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') doSearch(); }}
-                aria-label="Tìm kiếm sự kiện hoặc đơn vị tổ chức"
               />
-              <div className="absolute right-3 flex items-center gap-3">
-                <button
-                  onClick={doSearch}
-                  className="hover:opacity-80"
-                  aria-label="Thực hiện tìm kiếm"
-                >
-                  <SearchOutlined className="text-gray-600 text-lg" />
-                </button>
-                {/* <button className="hover:opacity-80"><FilterOutlined className="text-gray-600 text-lg" /></button> */}
-              </div>
+              <button
+                onClick={doSearch}
+                className="absolute right-3 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Tìm kiếm"
+              >
+                <SearchOutlined className="text-gray-500 text-lg" />
+              </button>
             </div>
           </div>
           
-          {/* Cột 3: Vé của tôi và Auth (Giữ nguyên kích thước tối thiểu và căn phải) */}
-          <div className="flex items-center gap-4 text-sm font-semibold min-w-fit"> 
-            {/* Vé của tôi (Nút hình chữ nhật bo tròn) */}
+          {/* Cột 3: Menu phải */}
+          <div className="flex items-center gap-6 text-sm font-semibold min-w-fit"> 
+            {/* Vé của tôi */}
             <Link 
               to="/my-tickets" 
-              className="flex items-center gap-1 text-[#0D99FF] bg-white border border-[#0D99FF] px-3 py-1 rounded-lg hover:bg-[#0D99FF] hover:text-white transition-colors no-underline whitespace-nowrap"
+              onClick={handleMyTicketsClick} // Gắn hàm xử lý click
+              className="flex items-center gap-2 text-[#0D99FF] hover:text-[#0b7ecf] transition-colors no-underline group"
             >
-                <CreditCardOutlined className="text-lg" />
-                <span>Vé của tôi</span>
+              <div className="p-2 bg-blue-50 rounded-full group-hover:bg-blue-100 transition-colors">
+                <CreditCardOutlined className="text-xl" />
+              </div>
+              <span className="hidden md:inline">Vé của tôi</span>
             </Link>
 
-            {/* Login / Register (Link text) */}
-            <div className="flex items-center gap-1 text-gray-700 whitespace-nowrap">
-                <UserOutlined className="text-lg text-[#0D99FF]" /> {/* Icon trang trí */}
-                
-                {/* Link Login */}
+            {/* Phân luồng hiển thị: Đã đăng nhập vs Chưa đăng nhập */}
+            {isLoggedIn ? (
+              // Case 1: Đã đăng nhập -> Hiển thị Avatar + Dropdown
+              <Dropdown menu={{ items: userMenu }} placement="bottomRight" arrow trigger={['click']}>
+                <div className="cursor-pointer flex items-center gap-2 hover:opacity-80 transition-opacity">
+                  <Avatar 
+                    size="large" 
+                    icon={<UserOutlined />} 
+                    className="bg-[#23A6F0]" 
+                    // src="url_avatar_user" // Nếu có url avatar thì bỏ comment dòng này
+                  />
+                </div>
+              </Dropdown>
+            ) : (
+              // Case 2: Chưa đăng nhập -> Hiển thị Login / Register
+              <div className="flex items-center gap-1 text-gray-600">
                 <button 
                   onClick={() => setIsLoginOpen(true)} 
-                  className="text-gray-700 hover:text-[#0D99FF] hover:underline transition-colors no-underline bg-transparent border-none cursor-pointer p-0 font-semibold"
+                  className="px-4 py-2 hover:text-[#0D99FF] hover:bg-blue-50 rounded-lg transition-all font-semibold"
                 >
-                    Login
+                  Đăng nhập
                 </button>
-                
-                <span className="text-gray-400">/</span>
-                
-                {/* Link Register */}
+                <span className="text-gray-300">|</span>
                 <button 
                   onClick={() => setIsRegisterOpen(true)} 
-                  className="text-gray-700 hover:text-[#0D99FF] hover:underline transition-colors no-underline bg-transparent border-none cursor-pointer p-0 font-semibold"
+                  className="px-4 py-2 bg-[#23A6F0] text-white rounded-lg hover:bg-[#1890ff] shadow-md hover:shadow-lg transition-all font-semibold"
                 >
-                    Register
+                  Đăng ký
                 </button>
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      {/* horizontal separator between header and page content */}
-      <div className="border-b border-gray-200" />
-
-      <main className="flex-grow bg-[#EAF8FF]">
+      {/* Nội dung chính */}
+      <main className="flex-grow bg-[#F8F9FA]">
         {children}
       </main>
 
       <Footer />
 
-      <LoginModal open={isLoginOpen} onClose={() => setIsLoginOpen(false)} onRegisterClick={() => { setIsLoginOpen(false); setIsRegisterOpen(true); }} />
-      <RegisterModal open={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} onLoginClick={() => { setIsRegisterOpen(false); setIsLoginOpen(true); }} />
+      {/* Modals */}
+      <LoginModal 
+        open={isLoginOpen} 
+        onClose={() => setIsLoginOpen(false)} 
+        onRegisterClick={() => { setIsLoginOpen(false); setIsRegisterOpen(true); }} 
+        onLoginSuccess={() => { setIsLoginOpen(false); setIsLoggedIn(true); }} // Cập nhật state khi login thành công
+      />
+      <RegisterModal 
+        open={isRegisterOpen} 
+        onClose={() => setIsRegisterOpen(false)} 
+        onLoginClick={() => { setIsRegisterOpen(false); setIsLoginOpen(true); }} 
+      />
     </div>
   );
 };
