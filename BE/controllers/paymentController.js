@@ -68,7 +68,7 @@ export const createPaymentUrl = async (req, res) => {
 
         // Gửi request sang MoMo
         const response = await axios.post(config.endpoint, requestBody, {
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }
         });
 
         console.log("MoMo Response:", response.data);
