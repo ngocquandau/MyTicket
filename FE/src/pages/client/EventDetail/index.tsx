@@ -39,6 +39,7 @@
     // Auth State
     const [showLogin, setShowLogin] = React.useState(false);
     const [showRegister, setShowRegister] = React.useState(false);
+    const [pendingTicket, setPendingTicket] = React.useState<TicketDisplay | null>(null);
 
     // Lấy chi tiết sự kiện
     React.useEffect(() => {
@@ -120,6 +121,7 @@
       
       if (!token) {
           message.info("Vui lòng đăng nhập để tiếp tục mua vé!");
+          setPendingTicket(ticket);
           setShowLogin(true);
           return;
       }
@@ -288,7 +290,13 @@
             open={showLogin} 
             onClose={() => setShowLogin(false)} 
             onRegisterClick={() => { setShowLogin(false); setShowRegister(true); }}
-            onLoginSuccess={() => setShowLogin(false)}
+            onLoginSuccess={() => {
+              setShowLogin(false);
+              if (pendingTicket) {
+                navigate('/checkout', { state: { event, ticketInfo: { ...pendingTicket, seat: null } } });
+                setPendingTicket(null);
+              }
+            }}
           />
           
           <RegisterModal 

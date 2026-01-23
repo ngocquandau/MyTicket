@@ -17,12 +17,14 @@ import Footer from '../components/Footer';
 import RegisterModal from '../components/auth/RegisterModal'; // Sửa lại đường dẫn import đúng case
 import LoginModal from '../components/auth/LoginModal';       // Sửa lại đường dẫn import đúng case
 import logo from '../assets/myticket_logo.png';
+import { getUserFromToken } from '../utils/auth';
 
 const { Title } = Typography;
 
 const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [pendingRedirect, setPendingRedirect] = useState<{ path: string; state?: any } | null>(null);
   const [keyword, setKeyword] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false); // State kiểm tra đăng nhập
   const navigate = useNavigate();
@@ -51,7 +53,32 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     if (!isLoggedIn) {
       e.preventDefault(); // Chặn chuyển trang
       message.info('Vui lòng đăng nhập để xem vé của bạn');
+      setPendingRedirect({ path: '/my-tickets' });
       setIsLoginOpen(true); // Mở modal login
+    }
+  };
+
+  const handleLoginSuccess = () => {
+    setIsLoginOpen(false);
+    setIsLoggedIn(true);
+    if (pendingRedirect) {
+      navigate(pendingRedirect.path, { state: pendingRedirect.state });
+      setPendingRedirect(null);
+    }
+  };
+
+  // Nếu là admin thì điều hướng sang trang admin
+  const handleLoginSuccessWithRedirect = () => {
+    setIsLoginOpen(false);
+    setIsLoggedIn(true);
+    const user = getUserFromToken();
+    if (user && user.role === 'admin') {
+      navigate('/admin/events');
+      return;
+    }
+    if (pendingRedirect) {
+      navigate(pendingRedirect.path, { state: pendingRedirect.state });
+      setPendingRedirect(null);
     }
   };
 
@@ -190,7 +217,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         open={isLoginOpen} 
         onClose={() => setIsLoginOpen(false)} 
         onRegisterClick={() => { setIsLoginOpen(false); setIsRegisterOpen(true); }} 
-        onLoginSuccess={() => { setIsLoginOpen(false); setIsLoggedIn(true); }} // Cập nhật state khi login thành công
+        onLoginSuccess={handleLoginSuccessWithRedirect} // Cập nhật state và điều hướng theo role khi login thành công
       />
       <RegisterModal 
         open={isRegisterOpen} 
