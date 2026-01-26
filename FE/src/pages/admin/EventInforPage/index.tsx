@@ -90,23 +90,23 @@ const EventInforPage: React.FC = () => {
 	};
 
 	const handleEdit = (record: any) => {
-		// Placeholder: navigate to edit page or open edit modal in future
-		setEditing(record);
-		form.setFieldsValue({
-			title: record.title,
-			genre: record.genre,
-			description: record.description,
-			posterURL: record.posterURL,
-			startDateTime: record.startDateTime ? moment(record.startDateTime) : null,
-			endDateTime: record.endDateTime ? moment(record.endDateTime) : null,
-			maxCapacity: record.maxCapacity,
-			status: record.status,
-			ageLimit: record.ageLimit,
-			seatImgUrl: record.seatImgUrl,
-			organizer: typeof record.organizer === 'string' ? record.organizer : (record.organizer?._id || ''),
-			location: typeof record.location === 'string' ? record.location : (record.location?.venue || ''),
-		});
-		setIsModalOpen(true);
+    // Placeholder: navigate to edit page or open edit modal in future
+    setEditing(record);
+    form.setFieldsValue({
+        title: record.title,
+        genre: record.genre,
+        description: record.description,
+        posterURL: record.posterURL,
+        startDateTime: record.startDateTime ? moment(record.startDateTime) : null,
+        endDateTime: record.endDateTime ? moment(record.endDateTime) : null,
+        maxCapacity: record.maxCapacity,
+        status: record.status,
+        ageLimit: record.ageLimit,
+        seatImgUrl: record.seatImgUrl,
+        organizer: typeof record.organizer === 'string' ? record.organizer : (record.organizer?._id || ''),
+        locationAddress: typeof record.location === 'string' ? record.location : (record.location?.address || ''),
+    });
+    setIsModalOpen(true);
 	};
 
     const handleDelete = async (id: string) => {
@@ -137,40 +137,58 @@ const EventInforPage: React.FC = () => {
 	};
 
 	const handleModalSubmit = async () => {
-		try {
-			const values = await form.validateFields();
-			setSubmitting(true);
-			const payload: any = {
-				title: values.title,
-				genre: values.genre,
-				description: values.description,
-				posterURL: values.posterURL,
-				startDateTime: values.startDateTime ? values.startDateTime.toISOString() : null,
-				endDateTime: values.endDateTime ? values.endDateTime.toISOString() : null,
-				maxCapacity: values.maxCapacity,
-				status: values.status,
-				tag: values.tag,
-				ageLimit: values.ageLimit,
-				seatImgUrl: values.seatImgUrl,
-				organizer: values.organizer,
-				location: values.location,
-			};
-			if (editing) {
-				await updateEventAPI(editing._id, payload);
-				message.success('Cập nhật sự kiện thành công');
-			} else {
-				await createEventAPI(payload);
-				message.success('Tạo sự kiện thành công');
-			}
-			handleModalCancel();
-			fetch();
-		} catch (err) {
-			console.error(err);
-			message.error('Lưu không thành công');
-		} finally {
-			setSubmitting(false);
-		}
-	};
+    try {
+        const values = await form.validateFields();
+        setSubmitting(true);
+        const payload: any = {
+            title: values.title,
+            genre: values.genre,
+            description: values.description,
+            posterURL: values.posterURL,
+            startDateTime: values.startDateTime ? values.startDateTime.toISOString() : null,
+            endDateTime: values.endDateTime ? values.endDateTime.toISOString() : null,
+            maxCapacity: values.maxCapacity,
+            status: values.status,
+            ageLimit: values.ageLimit,
+            seatImgUrl: values.seatImgUrl,
+            organizer: values.organizer,
+            location: {
+                address: values.locationAddress,
+                // Include coordinates if available, e.g., from record or default; otherwise, omit or set to existing
+                ...(editing?.location?.coordinates ? { coordinates: editing.location.coordinates, type: editing.location.type } : {}),
+            },
+            // Remove 'tag' if not expected by API
+        };
+
+        // Add validation: ensure required fields and valid dates
+        if (!payload.title || !payload.startDateTime || !payload.endDateTime) {
+            message.error('Required fields missing or invalid dates');
+            return;
+        }
+        if (payload.startDateTime >= payload.endDateTime) {
+            message.error('Start date must be before end date');
+            return;
+        }
+
+        console.log('Payload:', payload); // Debug log
+
+        if (editing) {
+            await updateEventAPI(editing._id, payload);
+            message.success('Cập nhật sự kiện thành công');
+        } else {
+            await createEventAPI(payload);
+            message.success('Tạo sự kiện thành công');
+        }
+        handleModalCancel();
+        fetch();
+    } catch (err: any) {
+        console.error('Error details:', err.response?.data || err); // Enhanced logging
+        const errorMsg = err.response?.data?.message || 'Lưu không thành công';
+        message.error(errorMsg);
+    } finally {
+        setSubmitting(false);
+    }
+};
 
 	// Build columns dynamically: omit organizer column if we don't have names
 	const baseColumns: any[] = [
@@ -262,8 +280,8 @@ const EventInforPage: React.FC = () => {
 						footer={null}
 						width={900}
 						centered
-						bodyStyle={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}
-						destroyOnClose
+						styles={{ body: { maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' } }}
+						destroyOnHidden
 					>
 						{selected && (
 							<Descriptions bordered column={1} size="small">
@@ -292,6 +310,8 @@ const EventInforPage: React.FC = () => {
 				confirmLoading={submitting}
 				width={800}
 				centered
+				styles={{ body: { maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' } }}
+				destroyOnHidden
 			>
 				<Form form={form} layout="vertical">
 					<Form.Item name="title" label="Tiêu đề" rules={[{ required: true }]}>
@@ -321,7 +341,7 @@ const EventInforPage: React.FC = () => {
 					</div>
 					<div style={{ display: 'flex', gap: 12 }}>
 						<Form.Item name="status" label="Trạng thái" style={{ flex: 1 }}>
-							<Select options={[{ label: 'active', value: 'active' }, { label: 'draft', value: 'draft' }, { label: 'cancelled', value: 'cancelled' }]} />
+							<Select options={[{ label: 'active', value: 'active' }, { label: 'draft', value: 'draft' }, { label: 'cancelled', value: 'cancelled' }, { label: 'published', value: 'published' }]} />
 						</Form.Item>
 						<Form.Item name="tag" label="Tag" style={{ flex: 1 }}>
 							<Input />
@@ -336,7 +356,7 @@ const EventInforPage: React.FC = () => {
 					<Form.Item name="organizer" label="Ban tổ chức">
 						<Select showSearch options={Object.keys(organizersMap).map(k => ({ label: organizersMap[k] || k, value: k }))} />
 					</Form.Item>
-					<Form.Item name="location" label="Địa điểm">
+					<Form.Item name="locationAddress" label="Địa điểm">
 						<Input />
 					</Form.Item>
 				</Form>
