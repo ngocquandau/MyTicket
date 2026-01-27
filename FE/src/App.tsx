@@ -15,6 +15,7 @@ import RevenuePage from './pages/organizer/RevenuePage';
 import OrganizerEventInforPage from './pages/organizer/EventInforPage';
 import OrganizerMessagesPage from './pages/organizer/MessagesPage';
 import OrganizerSettingPage from './pages/organizer/SettingPage';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const App: React.FC = () => {
   return (
@@ -27,18 +28,18 @@ const App: React.FC = () => {
         <Route path="/payment-result" element={<PaymentResultPage />} />
         <Route path="/my-tickets" element={<MyTicketsPage />} />
         
-        {/* Admin routes */}
-        <Route path="/admin/events" element={<EventInforPage />} />
-        <Route path="/admin/tickets" element={<TicketInforPage />} />
-        <Route path="/admin/organizer" element={<EventOrganizerPage />} />
-        <Route path="/admin/messages" element={<MessagesPage />} />
-        <Route path="/admin/settings" element={<SettingPage />} />
+        {/* Admin routes - chỉ admin mới truy cập */}
+        <Route path="/admin/events" element={<ProtectedRoute allowedRoles={['admin']}><EventInforPage /></ProtectedRoute>} />
+        <Route path="/admin/tickets" element={<ProtectedRoute allowedRoles={['admin']}><TicketInforPage /></ProtectedRoute>} />
+        <Route path="/admin/organizer" element={<ProtectedRoute allowedRoles={['admin']}><EventOrganizerPage /></ProtectedRoute>} />
+        <Route path="/admin/messages" element={<ProtectedRoute allowedRoles={['admin']}><MessagesPage /></ProtectedRoute>} />
+        <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><SettingPage /></ProtectedRoute>} />
 
-        {/* Organizer routes */}
-        <Route path="/organizer/revenue" element={<RevenuePage />} />
-        <Route path="/organizer/events" element={<OrganizerEventInforPage />} />
-        <Route path="/organizer/messages" element={<OrganizerMessagesPage />} />
-        <Route path="/organizer/settings" element={<OrganizerSettingPage />} />
+        {/* Organizer routes - chỉ organizer mới truy cập */}
+        <Route path="/organizer/revenue" element={<ProtectedRoute allowedRoles={['organizer']}><RevenuePage /></ProtectedRoute>} />
+        <Route path="/organizer/events" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerEventInforPage /></ProtectedRoute>} />
+        <Route path="/organizer/messages" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerMessagesPage /></ProtectedRoute>} />
+        <Route path="/organizer/settings" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerSettingPage /></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -77,3 +77,18 @@ export const getEventsByOrganizer = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// Lấy organizer theo user id trong token (route: GET /api/organizer/me)
+export const getOrganizerByUser = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const organizer = await Organizer.findOne({ user: userId });
+    if (!organizer) return res.status(404).json({ message: 'Organizer not found for this user' });
+
+    res.json(organizer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

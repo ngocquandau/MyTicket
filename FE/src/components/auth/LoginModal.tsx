@@ -1,10 +1,12 @@
 import React from 'react';
 import { loginAPI } from "../../services/authService";
-import { saveToken } from "../../utils/auth";
+import { saveToken, getUserRole, getUserFromToken } from "../../utils/auth";
+import { getAllOrganizersAPI } from "../../services/organizerService";
 import { message } from "antd";
 import { Modal, Form, Input } from 'antd';
 import { EyeInvisibleOutlined, EyeOutlined, CloseOutlined } from '@ant-design/icons';
 import logo from '../../assets/myticket_logo.png';
+import { useNavigate } from 'react-router-dom';
 
 interface Props {
   open: boolean;
@@ -15,12 +17,41 @@ interface Props {
 
 const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick, onLoginSuccess }) => {
   const [form] = Form.useForm();
+  const navigate = useNavigate();
 
   const onFinish = async (values: any) => {
     try {
       const res = await loginAPI(values);
       saveToken(res.data.token); // Lưu token
       message.success("Đăng nhập thành công!");
+      
+      // Kiểm tra role và chuyển hướng
+      const role = getUserRole();
+        // Nếu là organizer thì cố gắng lấy organizerId và lưu vào localStorage
+        if (role === 'organizer') {
+          try {
+            const payload = getUserFromToken();
+            const userId = payload?.id;
+            if (userId) {
+              const organizers = await getAllOrganizersAPI();
+              const found = organizers.find((o: any) => String(o.user) === String(userId));
+              if (found) {
+                localStorage.setItem('organizerId', found._id);
+              }
+            }
+          } catch (e) {
+            // Không bắt buộc — nếu không tìm được organizerId thì vẫn tiếp tục đăng nhập
+            console.warn('Không thể lấy organizerId:', e);
+          }
+        }
+      if (role === 'admin') {
+        navigate('/admin/events');
+      } else if (role === 'organizer') {
+        navigate('/organizer/events');
+      } else {
+        // user hoặc không có role, chuyển về home
+        navigate('/');
+      }
       
       if (onLoginSuccess) {
         onLoginSuccess(); // ✅ Gọi callback nếu có

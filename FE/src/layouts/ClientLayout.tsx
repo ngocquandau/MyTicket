@@ -67,21 +67,6 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
   };
 
-  // Nếu là admin thì điều hướng sang trang admin
-  const handleLoginSuccessWithRedirect = () => {
-    setIsLoginOpen(false);
-    setIsLoggedIn(true);
-    const user = getUserFromToken();
-    if (user && user.role === 'admin') {
-      navigate('/admin/events');
-      return;
-    }
-    if (pendingRedirect) {
-      navigate(pendingRedirect.path, { state: pendingRedirect.state });
-      setPendingRedirect(null);
-    }
-  };
-
   // Menu Dropdown cho Avatar
   const userMenu: MenuProps['items'] = [
     {
@@ -217,7 +202,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         open={isLoginOpen} 
         onClose={() => setIsLoginOpen(false)} 
         onRegisterClick={() => { setIsLoginOpen(false); setIsRegisterOpen(true); }} 
-        onLoginSuccess={handleLoginSuccessWithRedirect} // Cập nhật state và điều hướng theo role khi login thành công
+        onLoginSuccess={handleLoginSuccess} // Cập nhật state khi login thành công
       />
       <RegisterModal 
         open={isRegisterOpen} 

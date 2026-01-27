@@ -32,3 +32,9 @@ export const getUserFromToken = (token?: string) => {
     return null;
   }
 };
+
+// Lấy role từ token
+export const getUserRole = () => {
+  const user = getUserFromToken();
+  return user ? user.role : null;
+};

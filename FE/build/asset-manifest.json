@@ -1,0 +1,14 @@
+{
+  "files": {
+    "main.css": "/static/css/main.5b168ddb.css",
+    "main.js": "/static/js/main.3483920b.js",
+    "static/media/myticket_logo.png": "/static/media/myticket_logo.d711b5f82f35135d6059.png",
+    "index.html": "/index.html",
+    "main.5b168ddb.css.map": "/static/css/main.5b168ddb.css.map",
+    "main.3483920b.js.map": "/static/js/main.3483920b.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.5b168ddb.css",
+    "static/js/main.3483920b.js"
+  ]
+}
