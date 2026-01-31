@@ -9,8 +9,12 @@ import ticketRoutes from './routes/ticketRoutes.js';
 import voucherRoutes from './routes/voucherRoutes.js';
 import interactionRoutes from './routes/interactionRoutes.js';
 import purchaseRoutes from './routes/purchaseRoutes.js'; 
-import paymentRoutes from './routes/paymentRoutes.js';   
+import paymentRoutes from './routes/paymentRoutes.js';  
+import emailRoutes from './routes/emailRoutes.js'; 
 import dotenv from 'dotenv';
+import dns from "node:dns/promises";
+
+dns.setServers(["8.8.8.8"]); 
 
 dotenv.config();
 
@@ -34,6 +38,7 @@ app.use('/api/voucher', voucherRoutes);
 app.use('/api/interaction', interactionRoutes);
 app.use('/api/purchases', purchaseRoutes); // Đổi tên cho chuẩn RESTful
 app.use('/api/payment', paymentRoutes);
+app.use('/api/email', emailRoutes);
 
 // Route mặc định kiểm tra server
 app.get('/', (req, res) => {
