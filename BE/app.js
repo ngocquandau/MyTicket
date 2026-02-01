@@ -11,6 +11,8 @@ import interactionRoutes from './routes/interactionRoutes.js';
 import purchaseRoutes from './routes/purchaseRoutes.js'; 
 import paymentRoutes from './routes/paymentRoutes.js';  
 import emailRoutes from './routes/emailRoutes.js'; 
+import imageRoutes from './routes/imageRoutes.js';
+
 import dotenv from 'dotenv';
 import dns from "node:dns/promises";
 
@@ -30,15 +32,16 @@ mongoose.connect(MONGO_URI)
   .catch(err => console.error(' MongoDB Connection Error:', err));
 
 // Routes
-app.use('/api/user', userRoutes);
-app.use('/api/event', eventRoutes);
-app.use('/api/organizer', organizerRoutes);
-app.use('/api/ticket', ticketRoutes);
-app.use('/api/voucher', voucherRoutes);
+app.use('/api/user',        userRoutes);
+app.use('/api/event',       eventRoutes);
+app.use('/api/organizer',   organizerRoutes);
+app.use('/api/ticket',      ticketRoutes);
+app.use('/api/voucher',     voucherRoutes);
 app.use('/api/interaction', interactionRoutes);
-app.use('/api/purchases', purchaseRoutes); // Đổi tên cho chuẩn RESTful
-app.use('/api/payment', paymentRoutes);
-app.use('/api/email', emailRoutes);
+app.use('/api/purchases',   purchaseRoutes); // Đổi tên cho chuẩn RESTful
+app.use('/api/payment',     paymentRoutes);
+app.use('/api/email',       emailRoutes);
+app.use('/api/image',       imageRoutes);
 
 // Route mặc định kiểm tra server
 app.get('/', (req, res) => {
@@ -48,5 +51,5 @@ app.get('/', (req, res) => {
 // Khởi chạy server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(` Server running on http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

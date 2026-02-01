@@ -3,24 +3,59 @@ import TicketClass  from '../models/TicketClass.js';
 import Ticket       from '../models/Ticket.js';
 
 // Lấy tất cả Event
-export const getAllEvents = async (req, res) => {
-  try {
-    // console.log(req.Event.id);
-    const Events = await Event.find();
-    res.json(Events);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+// export const getAllEvents = async (req, res) => {
+//   try {
+//     // console.log(req.Event.id);
+//     const Events = await Event.find();
+//     res.json(Events);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+export const getAllEvents = async (req, res) => { 
+  try { 
+    // Lấy tham số từ query string 
+    const {      
+      limit = 10,         // số lượng record mỗi lần load 
+      direction = 'asc',  // hướng sort: asc hoặc desc 
+      sortField = '_id',  // field chính để sort 
+      ...filters          // gom các query param còn lại thành object filter 
+    } = req.query; 
+
+    // Lấy cursor từ header 
+    const cursor = req.headers['cursor'] || null; // con trỏ để phân trang (ví dụ _id cuối cùng của trang trước)
+    
+    // Xác định hướng sort 
+    const sortOrder = direction === 'desc' ? -1 : 1; 
+    
+    // Điều kiện lọc 
+    const query = { ...filters }; 
+    
+    // Áp dụng cursor để phân trang 
+    if (cursor) { 
+      query[sortField] = sortOrder === 1 ? { $gt: cursor } : { $lt: cursor }; 
+    } 
+    
+    // Query MongoDB với sort + limit 
+    const events = await Event.find(query) 
+      .sort({ [sortField]: sortOrder, _id: sortOrder }) // _id làm tie-breaker 
+      .limit(parseInt(limit, 10)) 
+      .select(`_id title posterURL startDateTime endDateTime ${sortField}`); 
+      
+    // Xác định cursor tiếp theo 
+    const nextCursor = events.length > 0 ? events[events.length - 1][sortField] : null; 
+    
+    // Trả về kết quả 
+    res.json({ events, nextCursor }); 
+  } catch (err) { 
+    res.status(500).json({ error: err.message }); 
+  } 
 };
 
 // Tạo Event mới
 export const createEvent = async (req, res) => {
   try {
-    // // Hash password trước khi lưu
-    // const saltRounds = 10;
-    // const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
-
-    // Tạo Event mới với password đã mã hóa
+    // Tạo Event mới
     const newEvent = new Event({
       ...req.body
     });
