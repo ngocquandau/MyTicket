@@ -17,7 +17,7 @@ import Footer from '../components/Footer';
 import RegisterModal from '../components/auth/RegisterModal'; // Sửa lại đường dẫn import đúng case
 import LoginModal from '../components/auth/LoginModal';       // Sửa lại đường dẫn import đúng case
 import logo from '../assets/myticket_logo.png';
-import { getUserFromToken } from '../utils/auth';
+import { logoutAPI } from '../services/authService';
 
 const { Title } = Typography;
 
@@ -35,11 +35,17 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     setIsLoggedIn(!!token); // Chuyển đổi sang boolean
   }, []); // Chỉ chạy 1 lần khi mount (hoặc thêm dependencies nếu token thay đổi động)
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsLoggedIn(false);
-    message.success('Đăng xuất thành công');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      await logoutAPI();
+    } catch (error) {
+      console.error('Logout API failed:', error);
+    } finally {
+      localStorage.removeItem('token');
+      setIsLoggedIn(false);
+      message.success('Đăng xuất thành công');
+      navigate('/');
+    }
   };
 
   const doSearch = React.useCallback(() => {

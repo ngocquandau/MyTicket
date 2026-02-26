@@ -2,9 +2,13 @@ import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
-import dotenv from 'dotenv';
-dotenv.config();
-const SECRET_KEY = process.env.SECRET_KEY;
+const getSecretKey = () => {
+  const secretKey = process.env.SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('SECRET_KEY is missing in environment variables');
+  }
+  return secretKey;
+};
 
 // Lấy tất cả user
 export const getAllUsers = async (req, res) => {
@@ -126,7 +130,7 @@ export const loginUser = async (req, res) => {
     // Tạo JWT
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
-      SECRET_KEY,
+      getSecretKey(),
       { expiresIn: '1h' }
     );
 
@@ -134,6 +138,9 @@ export const loginUser = async (req, res) => {
     res.json({ token });
   } catch (err) {
     console.error(err);
+    if (err.message?.includes('SECRET_KEY is missing')) {
+      return res.status(500).json({ error: 'Thiếu cấu hình SECRET_KEY trên server' });
+    }
     res.status(500).json({ error: 'Lỗi server' });
   }
 };
@@ -144,7 +151,7 @@ export const logoutUser = async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(403).json({ error: 'Thiếu token' });
 
-    const decoded = jwt.verify(token, SECRET_KEY);
+    const decoded = jwt.verify(token, getSecretKey());
     const user = await User.findById(decoded.id);
     if (!user) return res.status(404).json({ error: 'Không tìm thấy người dùng' });
 
@@ -154,6 +161,9 @@ export const logoutUser = async (req, res) => {
     res.json({ message: 'Đã đăng xuất thành công' });
   } catch (err) {
     console.error(err);
+    if (err.message?.includes('SECRET_KEY is missing')) {
+      return res.status(500).json({ error: 'Thiếu cấu hình SECRET_KEY trên server' });
+    }
     res.status(500).json({ error: 'Lỗi server khi đăng xuất' });
   }
 };

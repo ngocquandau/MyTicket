@@ -1,5 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { message } from 'antd';
+import { logoutAPI } from '../services/authService';
 import {
   MailOutlined,
   InstagramFilled,
@@ -18,9 +20,16 @@ const OrganizerLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      await logoutAPI();
+    } catch (error) {
+      console.error('Logout API failed:', error);
+    } finally {
+      localStorage.removeItem('token');
+      message.success('Đăng xuất thành công');
+      navigate('/');
+    }
   };
 
   const menuItems = [

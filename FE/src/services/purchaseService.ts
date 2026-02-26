@@ -23,3 +23,15 @@ export const getMyPurchasesAPI = async () => {
   const res = await axiosClient.get(`${PURCHASE_API_URL}/my-tickets`);
   return res.data;
 };
+
+export const downloadTicketQrImageAPI = async (ticketId: string) => {
+  const res = await axiosClient.get(`${PURCHASE_API_URL}/tickets/${encodeURIComponent(ticketId)}/qr-image`, {
+    responseType: 'blob',
+  });
+  return res.data;
+};
+
+export const getPaidTicketPublicInfoAPI = async (ticketId: string) => {
+  const res = await axiosClient.get(`${PURCHASE_API_URL}/tickets/${encodeURIComponent(ticketId)}/public`);
+  return res.data;
+};

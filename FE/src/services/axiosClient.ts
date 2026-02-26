@@ -1,4 +1,5 @@
 import axios from "axios";
+import { removeToken } from "../utils/auth";
 
 const BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:3000";
 
@@ -25,9 +26,7 @@ axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Nếu gặp lỗi 401, tự động xóa token và reload trang (hoặc chuyển về home)
-      // localStorage.removeItem("token");
-      // window.location.href = "/"; // Hoặc mở modal login
+      removeToken();
       console.error("Token hết hạn hoặc không hợp lệ");
     }
     return Promise.reject(error);

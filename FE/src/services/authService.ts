@@ -5,3 +5,4 @@ const USER_API_ROUTE = "/api/user";
 // Gán kiểu dữ liệu cho 'data'
 export const loginAPI = (data: any) => axiosClient.post(`${USER_API_ROUTE}/login`, data);
 export const registerAPI = (data: any) => axiosClient.post(USER_API_ROUTE, data);
+export const logoutAPI = () => axiosClient.post(`${USER_API_ROUTE}/logout`);

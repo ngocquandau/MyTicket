@@ -4,6 +4,7 @@ import { Button, Table, Input, Space, Popconfirm, message, Modal, Form } from 'a
 import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getAllOrganizersAPI, deleteOrganizerAPI, createOrganizerAPI, updateOrganizerAPI } from '../../../services/organizerService';
 import { useNavigate } from 'react-router-dom';
+import { handleAuthError } from '../../../utils/httpError';
 
 const { Search } = Input;
 
@@ -25,10 +26,7 @@ const EventOrganizerPage: React.FC = () => {
 			setData(Array.isArray(res) ? res : []);
 		} catch (err) {
 			console.error(err);
-			const status = (err as any)?.response?.status;
-			// Nếu lỗi xác thực/permission thì chuyển hướng về trang chủ (không hiển thị toast)
-			if (status === 401 || status === 403) {
-				navigate('/', { replace: true });
+			if (handleAuthError(err, navigate, { includeForbidden: true, showMessage: false })) {
 				return;
 			}
 			message.open({ type: 'error', content: 'Không thể tải danh sách ban tổ chức', key: 'organizer-load' });

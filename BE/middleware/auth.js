@@ -1,9 +1,14 @@
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-dotenv.config();
-const SECRET_KEY = process.env.SECRET_KEY;
 
 import User from '../models/User.js';
+
+const getSecretKey = () => {
+  const secretKey = process.env.SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('SECRET_KEY is missing in environment variables');
+  }
+  return secretKey;
+};
 
 export const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -11,7 +16,7 @@ export const verifyToken = async (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, SECRET_KEY);
+    const decoded = jwt.verify(token, getSecretKey());
 
     // Truy vấn user từ DB để kiểm tra isActive
     const user = await User.findById(decoded.id);
@@ -21,6 +26,9 @@ export const verifyToken = async (req, res, next) => {
     req.user = decoded;
     next();
   } catch (err) {
+    if (err.message?.includes('SECRET_KEY is missing')) {
+      return res.status(500).json({ error: 'Thiếu cấu hình SECRET_KEY trên server' });
+    }
     res.status(401).json({ error: 'Token không hợp lệ hoặc đã hết hạn' });
   }
 };

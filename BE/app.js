@@ -1,6 +1,8 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors'; 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import userRoutes from './routes/userRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
@@ -14,11 +16,10 @@ import emailRoutes from './routes/emailRoutes.js';
 import imageRoutes from './routes/imageRoutes.js';
 
 import dotenv from 'dotenv';
-import dns from "node:dns/promises";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-dns.setServers(["8.8.8.8"]); 
-
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 
@@ -26,10 +27,8 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-const MONGO_URI = process.env.MONGO_URI ;
-mongoose.connect(MONGO_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error(' MongoDB Connection Error:', err));
+const MONGO_URI = process.env.MONGO_URI;
+const PORT = process.env.PORT || 3000;
 
 // Routes
 app.use('/api/user',        userRoutes);
@@ -48,8 +47,23 @@ app.get('/', (req, res) => {
   res.send('MyTicket API is running...');
 });
 
-// Khởi chạy server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+// Khởi chạy server sau khi DB sẵn sàng
+const startServer = async () => {
+  try {
+    if (!MONGO_URI) {
+      throw new Error('MONGO_URI is missing in BE/.env');
+    }
+
+    await mongoose.connect(MONGO_URI);
+    console.log('MongoDB connected');
+
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error('MongoDB Connection Error:', err.message);
+    process.exit(1);
+  }
+};
+
+startServer();

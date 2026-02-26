@@ -16,7 +16,7 @@ export const getAllEvents = async (req, res) => {
   try { 
     // Lấy tham số từ query string 
     const {      
-      limit = 10,         // số lượng record mỗi lần load 
+      limit,              // số lượng record mỗi lần load (optional)
       direction = 'asc',  // hướng sort: asc hoặc desc 
       sortField = '_id',  // field chính để sort 
       ...filters          // gom các query param còn lại thành object filter 
@@ -36,11 +36,16 @@ export const getAllEvents = async (req, res) => {
       query[sortField] = sortOrder === 1 ? { $gt: cursor } : { $lt: cursor }; 
     } 
     
-    // Query MongoDB với sort + limit 
-    const events = await Event.find(query) 
-      .sort({ [sortField]: sortOrder, _id: sortOrder }) // _id làm tie-breaker 
-      .limit(parseInt(limit, 10)) 
-      .select(`_id title posterURL startDateTime endDateTime ${sortField}`); 
+    // Query MongoDB với sort + limit (nếu có truyền limit)
+    let eventsQuery = Event.find(query)
+      .sort({ [sortField]: sortOrder, _id: sortOrder }); // _id làm tie-breaker
+
+    const parsedLimit = Number(limit);
+    if (Number.isFinite(parsedLimit) && parsedLimit > 0) {
+      eventsQuery = eventsQuery.limit(parsedLimit);
+    }
+
+    const events = await eventsQuery;
       
     // Xác định cursor tiếp theo 
     const nextCursor = events.length > 0 ? events[events.length - 1][sortField] : null; 

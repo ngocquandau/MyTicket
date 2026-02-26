@@ -6,6 +6,7 @@ import moment from 'moment';
 import { useNavigate } from 'react-router-dom';
 import { getAllEventsAPI, createEventAPI, updateEventAPI } from '../../../services/eventService';
 import { getAllOrganizersAPI } from '../../../services/organizerService';
+import { handleAuthError } from '../../../utils/httpError';
 
 const { Search } = Input;
 
@@ -23,10 +24,7 @@ const EventInforPage: React.FC = () => {
 			setData(Array.isArray(res) ? res : []);
 		} catch (err) {
 			console.error(err);
-			const status = (err as any)?.response?.status;
-			if (status === 401 || status === 403) {
-				// silently redirect to home for unauthorized
-				navigate('/', { replace: true });
+			if (handleAuthError(err, navigate, { includeForbidden: true, showMessage: false })) {
 				return;
 			}
 			message.error('Không thể tải danh sách sự kiện');

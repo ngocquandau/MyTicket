@@ -14,6 +14,11 @@ const ticketSchema = new mongoose.Schema({
         type: Boolean, 
         default: false },
     qrCode: { type: String },
+    purchase: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Purchase',
+        default: null
+    },
     ticketId: { 
         type: String, 
         required: true } // Mã vé do ban tổ chức cấp
