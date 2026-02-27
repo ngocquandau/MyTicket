@@ -19,12 +19,22 @@ import OrganizerEventInforPage from './pages/organizer/EventInforPage';
 import OrganizerMessagesPage from './pages/organizer/MessagesPage';
 import OrganizerSettingPage from './pages/organizer/SettingPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import { getUserRole } from './utils/auth';
 
 const App: React.FC = () => {
+  const role = getUserRole();
+  const roleHome = role === 'admin'
+    ? '/admin/events'
+    : role === 'organizer'
+      ? '/organizer/events'
+      : role === 'user'
+        ? '/my-tickets'
+        : '/';
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={role && role !== 'user' ? <Navigate to={roleHome} replace /> : <HomePage />} />
         <Route path="/event/:id" element={<EventDetail />} />
         <Route path="/search" element={<SreachResultPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
@@ -47,7 +57,10 @@ const App: React.FC = () => {
         <Route path="/organizer/messages" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerMessagesPage /></ProtectedRoute>} />
         <Route path="/organizer/settings" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerSettingPage /></ProtectedRoute>} />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Navigate to="/admin/events" replace /></ProtectedRoute>} />
+        <Route path="/organizer" element={<ProtectedRoute allowedRoles={['organizer']}><Navigate to="/organizer/events" replace /></ProtectedRoute>} />
+
+        <Route path="*" element={<Navigate to={roleHome} replace />} />
       </Routes>
     </BrowserRouter>
   );

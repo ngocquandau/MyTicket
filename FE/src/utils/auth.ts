@@ -3,7 +3,7 @@ export const saveToken = (token: string) => {
 };
 
 export const getToken = () => {
-  return localStorage.getItem("token");
+  return localStorage.getItem("token") || sessionStorage.getItem("token");
 };
 
 export const isTokenExpired = (token?: string) => {
@@ -22,6 +22,7 @@ export const isTokenExpired = (token?: string) => {
 
 export const removeToken = () => {
   localStorage.removeItem("token");
+  sessionStorage.removeItem("token");
 };
 
 // Lấy payload từ JWT (nếu có)
@@ -35,16 +36,11 @@ export const getUserFromToken = (token?: string) => {
     }
     const parts = t.split('.');
     if (parts.length !== 3) return null;
-    const payload = parts[1];
-    // atob có sẵn trên browser
-    const json = decodeURIComponent(
-      atob(payload)
-        .split('')
-        .map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        })
-        .join('')
-    );
+    let payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (payload.length % 4) {
+      payload += '=';
+    }
+    const json = atob(payload);
     return JSON.parse(json);
   } catch (err) {
     return null;

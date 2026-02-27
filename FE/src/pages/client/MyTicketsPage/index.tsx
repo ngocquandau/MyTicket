@@ -76,7 +76,7 @@ const MyTicketsPage: React.FC = () => {
       return;
     }
     const sampleTicketId = tickets?.[0]?.ticketId;
-    const sampleUrl = sampleTicketId ? buildTicketInfoUrl(sampleTicketId) : '';
+    const sampleUrl = sampleTicketId ? buildTicketHtmlUrl(sampleTicketId) : '';
     if (sampleUrl.includes('localhost') || sampleUrl.includes('127.0.0.1')) {
       message.warning('QR đang trỏ về localhost, điện thoại khác thiết bị sẽ không mở được. Hãy cấu hình REACT_APP_PUBLIC_API_BASE_URL bằng IP LAN hoặc domain public.');
     }
@@ -105,9 +105,9 @@ const MyTicketsPage: React.FC = () => {
     return 'Vé tự do (Vào cổng)';
   };
 
-  const buildTicketInfoUrl = (ticketId: string) => {
+  const buildTicketHtmlUrl = (ticketId: string) => {
     const runtimeBase = `${window.location.protocol}//${window.location.hostname}:3000`;
-    const apiBase = process.env.REACT_APP_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL || runtimeBase;
+    const apiBase = (window as any).REACT_APP_PUBLIC_API_BASE_URL || (window as any).REACT_APP_API_BASE_URL || runtimeBase;
     return `${apiBase}/api/purchases/tickets/${encodeURIComponent(ticketId)}/public-image`;
   };
 
@@ -263,7 +263,7 @@ const MyTicketsPage: React.FC = () => {
                             </Tag>
                             
                             <div className="p-2 border-4 border-gray-800 rounded-lg bg-white">
-                                <QRCode value={buildTicketInfoUrl(t.ticketId || 'INVALID')} size={180} />
+                                <QRCode value={buildTicketHtmlUrl(t.ticketId || 'INVALID')} size={180} />
                             </div>
                             <Text copyable className="mt-3 font-mono text-gray-600 bg-gray-100 px-3 py-1 rounded">
                                 {t.ticketId}

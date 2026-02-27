@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, Spin, Typography, Tag, Result, Button } from 'antd';
 import { Link, useParams } from 'react-router-dom';
 import { getPaidTicketPublicInfoAPI } from '../../../services/purchaseService';
+import logo from '../../../assets/myticket_logo.png';
 
 const { Title, Text } = Typography;
 
@@ -79,19 +80,31 @@ const TicketInfoPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
-      <Card className="w-full max-w-2xl rounded-2xl shadow-sm">
-        <div className="text-center mb-5">
+      <Card className="w-full max-w-2xl rounded-2xl shadow-sm overflow-hidden">
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+            <img
+              src={logo}
+              alt="MyTicket watermark"
+              className="w-[80%] max-w-[420px] h-auto opacity-[0.06]"
+            />
+          </div>
+
+          <div className="relative z-10">
+            <div className="text-center mb-5">
           <Title level={3} className="!mb-2 !text-[#23A6F0]">THÔNG TIN VÉ</Title>
           <Tag color="success" className="px-3 py-1 text-sm font-medium">ĐÃ THANH TOÁN</Tag>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-          {infoRows.map((row) => (
-            <div key={row.label} className="bg-[#F8FAFC] border border-gray-100 rounded-lg px-4 py-3">
-              <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-1">{row.label}</div>
-              <div className="text-[15px] text-gray-800 break-words font-medium leading-snug">{row.value}</div>
             </div>
-          ))}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              {infoRows.map((row) => (
+                <div key={row.label} className="bg-[#F8FAFC]/95 border border-gray-100 rounded-lg px-4 py-3">
+                  <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-1">{row.label}</div>
+                  <div className="text-[15px] text-gray-800 break-words font-medium leading-snug">{row.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </Card>
     </div>

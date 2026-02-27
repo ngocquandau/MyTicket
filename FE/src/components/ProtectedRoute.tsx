@@ -8,6 +8,13 @@ interface ProtectedRouteProps {
   redirectTo?: string;
 }
 
+const getDefaultPathByRole = (role: string | null) => {
+  if (role === 'admin') return '/admin/events';
+  if (role === 'organizer') return '/organizer/events';
+  if (role === 'user') return '/my-tickets';
+  return '/';
+};
+
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles, redirectTo = '/' }) => {
   const role = getUserRole();
 
@@ -17,8 +24,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles,
   }
 
   if (!allowedRoles.includes(role)) {
-    // Không có quyền, chuyển về home hoặc trang phù hợp
-    return <Navigate to={redirectTo} replace />;
+    // Không có quyền, chuyển về trang đúng theo role
+    const fallback = redirectTo !== '/' ? redirectTo : getDefaultPathByRole(role);
+    return <Navigate to={fallback} replace />;
   }
 
   return <>{children}</>;

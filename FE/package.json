@@ -11,6 +11,8 @@
     "@ant-design/icons": "^5.0.0",
     "antd": "^5.0.0",
     "axios": "^1.13.2",
+    "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
     "moment": "^2.30.1",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",

@@ -1,11 +1,17 @@
 import mongoose from 'mongoose';
 import QRCode from 'qrcode';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import Purchase from '../models/Purchase.js';
 import TicketClass from '../models/TicketClass.js';
 import Event from '../models/Event.js';
 import Voucher from '../models/Voucher.js';
 import User from '../models/User.js';
 import Ticket from '../models/Ticket.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const buildGeneralTicketId = () => `GEN-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 const escapeXml = (value = '') => String(value)
@@ -14,6 +20,22 @@ const escapeXml = (value = '') => String(value)
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+
+let watermarkLogoDataUri = '';
+const getWatermarkLogoDataUri = () => {
+    if (watermarkLogoDataUri) return watermarkLogoDataUri;
+
+    try {
+        const logoPath = path.resolve(__dirname, '../../FE/src/assets/myticket_logo.png');
+        if (!fs.existsSync(logoPath)) return '';
+        const logoBuffer = fs.readFileSync(logoPath);
+        watermarkLogoDataUri = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+        return watermarkLogoDataUri;
+    } catch (error) {
+        console.warn('Không thể tải logo watermark:', error?.message || error);
+        return '';
+    }
+};
 
 const ensurePurchaseTickets = async (purchaseDoc) => {
     const purchase = purchaseDoc.toObject ? purchaseDoc.toObject() : purchaseDoc;
@@ -273,7 +295,7 @@ export const downloadTicketQrImage = async (req, res) => {
         }
 
         const publicApiBase = process.env.PUBLIC_API_BASE_URL || 'http://localhost:3000';
-        const qrValue = `${publicApiBase}/api/purchases/tickets/${encodeURIComponent(ticket.ticketId)}/public-image`;
+        const qrValue = `${publicApiBase}/api/purchases/tickets/${encodeURIComponent(ticket.ticketId)}/e-ticket`;
 
         const imageBuffer = await QRCode.toBuffer(qrValue, {
             type: 'png',
@@ -391,6 +413,7 @@ export const getPaidTicketPublicImage = async (req, res) => {
         const buyer = ticket.purchase.user || {};
         const buyerName = [buyer.lastName, buyer.firstName].filter(Boolean).join(' ').trim() || 'Đang cập nhật';
         const buyerContact = [buyer.email, buyer.phoneNumber].filter(Boolean).join(' | ') || 'Đang cập nhật';
+        const logoDataUri = getWatermarkLogoDataUri();
 
         const compact = (value = '', maxChars = 72) => {
             const normalized = String(value || '').replace(/\s+/g, ' ').trim();
@@ -439,6 +462,7 @@ export const getPaidTicketPublicImage = async (req, res) => {
             color: #0f172a;
         }
         .card {
+            position: relative;
             width: min(96vw, 760px);
             max-height: calc(100vh - 20px);
             border: 1px solid #d6e1ee;
@@ -447,6 +471,25 @@ export const getPaidTicketPublicImage = async (req, res) => {
             box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
             padding: 14px;
             overflow: hidden;
+        }
+        .watermark {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+        }
+        .watermark img {
+            width: min(80%, 420px);
+            height: auto;
+            opacity: 0.06;
+        }
+        .card-content {
+            position: relative;
+            z-index: 1;
         }
         .head {
             display: flex;
@@ -485,7 +528,6 @@ export const getPaidTicketPublicImage = async (req, res) => {
             grid-template-columns: 140px 1fr;
             gap: 10px;
             align-items: center;
-            background: #f8fbff;
             border: 1px solid #e3ebf5;
             border-radius: 10px;
             padding: 8px 10px;
@@ -527,14 +569,17 @@ export const getPaidTicketPublicImage = async (req, res) => {
 </head>
 <body>
     <section class="card" aria-label="Thông tin vé điện tử">
-        <div class="head">
-            <h1 class="title">THÔNG TIN VÉ ĐIỆN TỬ</h1>
-            <span class="paid">ĐÃ THANH TOÁN</span>
-        </div>
-        <p class="sub">MyTicket - Vé hợp lệ đã thanh toán</p>
+        ${logoDataUri ? `<div class="watermark"><img src="${logoDataUri}" alt="MyTicket watermark" /></div>` : ''}
+        <div class="card-content">
+            <div class="head">
+                <h1 class="title">THÔNG TIN VÉ ĐIỆN TỬ</h1>
+                <span class="paid">ĐÃ THANH TOÁN</span>
+            </div>
+            <p class="sub">MyTicket - Vé hợp lệ đã thanh toán</p>
 
-        <div class="table">
-            ${rowsHtml}
+            <div class="table">
+                ${rowsHtml}
+            </div>
         </div>
     </section>
 </body>

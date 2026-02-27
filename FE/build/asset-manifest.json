@@ -1,14 +1,20 @@
 {
   "files": {
-    "main.css": "/static/css/main.27744905.css",
-    "main.js": "/static/js/main.a8f3d119.js",
+    "main.css": "/static/css/main.3e962482.css",
+    "main.js": "/static/js/main.d0fda541.js",
+    "static/js/239.be65e32a.chunk.js": "/static/js/239.be65e32a.chunk.js",
+    "static/js/977.4f7ca678.chunk.js": "/static/js/977.4f7ca678.chunk.js",
+    "static/js/667.15c8fc84.chunk.js": "/static/js/667.15c8fc84.chunk.js",
     "static/media/myticket_logo.png": "/static/media/myticket_logo.d711b5f82f35135d6059.png",
     "index.html": "/index.html",
-    "main.27744905.css.map": "/static/css/main.27744905.css.map",
-    "main.a8f3d119.js.map": "/static/js/main.a8f3d119.js.map"
+    "main.3e962482.css.map": "/static/css/main.3e962482.css.map",
+    "main.d0fda541.js.map": "/static/js/main.d0fda541.js.map",
+    "239.be65e32a.chunk.js.map": "/static/js/239.be65e32a.chunk.js.map",
+    "977.4f7ca678.chunk.js.map": "/static/js/977.4f7ca678.chunk.js.map",
+    "667.15c8fc84.chunk.js.map": "/static/js/667.15c8fc84.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.27744905.css",
-    "static/js/main.a8f3d119.js"
+    "static/css/main.3e962482.css",
+    "static/js/main.d0fda541.js"
   ]
 }

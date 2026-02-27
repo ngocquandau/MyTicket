@@ -12,49 +12,49 @@ import Ticket       from '../models/Ticket.js';
 //     res.status(500).json({ error: err.message });
 //   }
 // };
-export const getAllEvents = async (req, res) => { 
-  try { 
-    // Lấy tham số từ query string 
-    const {      
-      limit,              // số lượng record mỗi lần load (optional)
-      direction = 'asc',  // hướng sort: asc hoặc desc 
-      sortField = '_id',  // field chính để sort 
-      ...filters          // gom các query param còn lại thành object filter 
-    } = req.query; 
+export const getAllEvents = async (req, res) => {
+  try {
+    const {
+      limit = 10,
+      direction = 'asc',
+      sortField = '_id',
+      search,              // keyword search
+      ...filters
+    } = req.query;
 
-    // Lấy cursor từ header 
-    const cursor = req.headers['cursor'] || null; // con trỏ để phân trang (ví dụ _id cuối cùng của trang trước)
-    
-    // Xác định hướng sort 
-    const sortOrder = direction === 'desc' ? -1 : 1; 
-    
-    // Điều kiện lọc 
-    const query = { ...filters }; 
-    
-    // Áp dụng cursor để phân trang 
-    if (cursor) { 
-      query[sortField] = sortOrder === 1 ? { $gt: cursor } : { $lt: cursor }; 
-    } 
-    
-    // Query MongoDB với sort + limit (nếu có truyền limit)
-    let eventsQuery = Event.find(query)
-      .sort({ [sortField]: sortOrder, _id: sortOrder }); // _id làm tie-breaker
+    const cursor = req.headers['cursor'] || null;
+    const sortOrder = direction === 'desc' ? -1 : 1;
 
-    const parsedLimit = Number(limit);
-    if (Number.isFinite(parsedLimit) && parsedLimit > 0) {
-      eventsQuery = eventsQuery.limit(parsedLimit);
+    // Tạo query cơ bản từ filter
+    const query = { ...filters };
+
+    // Thêm search theo title (regex, ignore case)
+    if (search) {
+      query.title = { $regex: search, $options: 'i' };
     }
 
-    const events = await eventsQuery;
-      
-    // Xác định cursor tiếp theo 
-    const nextCursor = events.length > 0 ? events[events.length - 1][sortField] : null; 
-    
-    // Trả về kết quả 
-    res.json({ events, nextCursor }); 
-  } catch (err) { 
-    res.status(500).json({ error: err.message }); 
-  } 
+    // Áp dụng cursor pagination
+    if (cursor) {
+      query[sortField] =
+        sortOrder === 1
+          ? { $gt: cursor }
+          : { $lt: cursor };
+    }
+
+    const events = await Event.find(query)
+      .sort({ [sortField]: sortOrder, _id: sortOrder }) // _id làm tie-breaker
+      .limit(parseInt(limit, 10))
+      .select('_id title posterURL startDateTime endDateTime');
+
+    const nextCursor =
+      events.length > 0
+        ? events[events.length - 1][sortField]
+        : null;
+
+    res.json({ events, nextCursor });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // Tạo Event mới
