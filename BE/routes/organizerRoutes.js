@@ -8,6 +8,7 @@ import {
   getEventsByOrganizer,
   getOrganizerByUser
 } from '../controllers/organizerController.js';
+import { getEventAttendeesForOrganizer } from '../controllers/organizerController.js';
 
 import { verifyAdmin, verifyToken } from '../middleware/auth.js';
 
@@ -25,5 +26,6 @@ router.put    ('/:id',  verifyToken, verifyAdmin, updateOrganizer);
 router.delete ('/:id',  verifyToken, verifyAdmin, deleteOrganizer);
 
 router.get    ('/:id/events', getEventsByOrganizer);
+router.get    ('/:id/events/:eventId/attendees', verifyToken, getEventAttendeesForOrganizer);
 
 export default router;

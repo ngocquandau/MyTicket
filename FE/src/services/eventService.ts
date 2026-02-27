@@ -3,9 +3,17 @@ import { EventSummary } from '../types/event';
 
 const API_URL = '/api/event';
 
-export const getAllEventsAPI = async () => {
+export interface GetAllEventsParams {
+  limit?: number;
+  direction?: 'asc' | 'desc';
+  sortField?: string;
+  search?: string;
+  [key: string]: any;
+}
+
+export const getAllEventsAPI = async (params?: GetAllEventsParams) => {
 	// Call BE route mounted at /api/event which returns { events, nextCursor }
-	const res = await axiosClient.get(API_URL);
+	const res = await axiosClient.get(API_URL, { params });
 	// Some endpoints may return { events } or an array directly — normalize to an array
 	return res.data.events ?? res.data;
 };

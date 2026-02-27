@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import OrganizerLayout from '../../../layouts/OrganizerLayout';
 import axiosClient from '../../../services/axiosClient';
+import { getAllEventsAPI } from '../../../services/eventService';
 import { Button, Table, Input, message, Image, Tag, Modal, Descriptions, Space, Typography } from 'antd';
 import { EyeOutlined, TeamOutlined, DownloadOutlined } from '@ant-design/icons';
 import jsPDF from 'jspdf';
@@ -64,6 +65,7 @@ function getUserFromToken(): any | null {
 
 const EventInforPage: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
+  const [organizerEvents, setOrganizerEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -103,7 +105,9 @@ const EventInforPage: React.FC = () => {
         }
 
         const response = await axiosClient.get(`/api/organizer/${organizerId}/events`);
-        setEvents(Array.isArray(response.data) ? response.data : []);
+        const eventList = Array.isArray(response.data) ? response.data : [];
+        setOrganizerEvents(eventList);
+        setEvents(eventList);
       } catch (err: any) {
         console.error('Fetch events error:', err);
         const msg = err?.response?.data?.message || err?.message || 'Failed to fetch events.';
@@ -129,6 +133,51 @@ const EventInforPage: React.FC = () => {
 
   const openView = (record: Event) => { setSelected(record); setViewOpen(true); };
   const closeView = () => { setSelected(null); setViewOpen(false); };
+
+  const toUpperNoAccent = (value: string) => {
+    const normalized = String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D');
+
+    return normalized
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'SU_KIEN';
+  };
+
+  const handleSearchEvents = async (value: string) => {
+    const keyword = value.trim();
+    setQuery(keyword);
+
+    if (!keyword) {
+      setEvents(organizerEvents);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const searched = await getAllEventsAPI({
+        search: keyword,
+        limit: 100,
+        direction: 'desc',
+        sortField: 'startDateTime'
+      });
+
+      const matchedIds = new Set(
+        (Array.isArray(searched) ? searched : []).map((ev: any) => String(ev?._id || ''))
+      );
+
+      const scopedResults = organizerEvents.filter((ev) => matchedIds.has(String(ev._id)));
+      setEvents(scopedResults);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Không thể tìm kiếm sự kiện.';
+      message.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const exportAttendeesCsv = () => {
     if (!attendeeRows.length) {
@@ -169,9 +218,10 @@ const EventInforPage: React.FC = () => {
     const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    const safeTitle = (attendeeEvent?.title || 'event').replace(/[^a-zA-Z0-9-_]/g, '_');
+    const safeTitle = toUpperNoAccent(attendeeEvent?.title || 'SU_KIEN');
+    const exportFileName = `DANH_SACH_KHACH_HANG_${safeTitle}.csv`;
     link.href = url;
-    link.download = `attendees_${safeTitle}.csv`;
+    link.download = exportFileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -185,7 +235,8 @@ const EventInforPage: React.FC = () => {
     }
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-    const title = `Attendees - ${attendeeEvent?.title || 'Event'}`;
+    const safeTitle = toUpperNoAccent(attendeeEvent?.title || 'SU_KIEN');
+    const title = `DANH SACH KHACH HANG - ${safeTitle}`;
     doc.setFontSize(12);
     doc.text(title, 40, 30);
 
@@ -211,8 +262,7 @@ const EventInforPage: React.FC = () => {
       headStyles: { fillColor: [24, 144, 255] }
     });
 
-    const safeTitle = (attendeeEvent?.title || 'event').replace(/[^a-zA-Z0-9-_]/g, '_');
-    doc.save(`attendees_${safeTitle}.pdf`);
+    doc.save(`DANH_SACH_KHACH_HANG_${safeTitle}.pdf`);
   };
 
   const closeAttendeeModal = () => {
@@ -228,49 +278,34 @@ const EventInforPage: React.FC = () => {
     setAttendeeRows([]);
 
     try {
-      const ticketClassRes = await axiosClient.get(`/api/event/${event._id}/tickets`);
-      const ticketClasses = Array.isArray(ticketClassRes.data) ? ticketClassRes.data : [];
-
-      const soldTicketIds = Array.from(new Set(
-        ticketClasses
-          .flatMap((tc: any) => Array.isArray(tc?.ticketList) ? tc.ticketList : [])
-          .filter((t: any) => Boolean(t?.isSold && t?.ticketId))
-          .map((t: any) => String(t.ticketId))
-      ));
-
-      if (!soldTicketIds.length) {
-        message.info('Sự kiện này chưa có dữ liệu vé đã bán khả dụng từ API hiện tại.');
+      const orgRes = await axiosClient.get('/api/organizer/me');
+      const organizerId = orgRes?.data?._id;
+      if (!organizerId) {
+        message.error('Không tìm thấy thông tin organizer.');
         return;
       }
 
-      const infoResults = await Promise.allSettled(
-        soldTicketIds.map((ticketId) => axiosClient.get(`/api/purchases/tickets/${encodeURIComponent(ticketId)}/public`))
-      );
-
-      const rows: AttendeeRow[] = infoResults
-        .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && Boolean(r.value?.data?.ticketId))
-        .map((r) => {
-          const data = r.value.data;
-          return {
-            key: data.ticketId,
-            customerName: data?.buyer?.name || '—',
-            customerEmail: data?.buyer?.email || '—',
-            customerPhone: data?.buyer?.phoneNumber || '—',
-            ticketId: data?.ticketId || '—',
-            ticketClassName: data?.ticketClass?.name || '—',
-            seat: data?.seat || '—',
-            seatType: data?.seatType || '—',
-            ticketPrice: Number(data?.ticketClass?.price || 0),
-            paymentMethod: data?.payment?.method || '—',
-            purchasedAt: data?.payment?.purchasedAt ? new Date(data.payment.purchasedAt).toLocaleString('vi-VN') : '—'
-          };
-        })
-        .sort((a, b) => a.customerName.localeCompare(b.customerName));
+      const attendeeRes = await axiosClient.get(`/api/organizer/${organizerId}/events/${event._id}/attendees`);
+      const rows: AttendeeRow[] = (Array.isArray(attendeeRes?.data?.attendees) ? attendeeRes.data.attendees : [])
+        .map((data: any) => ({
+          key: data?.key || data?.ticketId || `${data?.purchaseId || ''}-${Math.random()}`,
+          customerName: data?.customerName || '—',
+          customerEmail: data?.customerEmail || '—',
+          customerPhone: data?.customerPhone || '—',
+          ticketId: data?.ticketId || '—',
+          ticketClassName: data?.ticketClassName || '—',
+          seat: data?.seat || '—',
+          seatType: data?.seatType || '—',
+          ticketPrice: Number(data?.ticketPrice || 0),
+          paymentMethod: data?.paymentMethod || '—',
+          purchasedAt: data?.purchasedAt ? new Date(data.purchasedAt).toLocaleString('vi-VN') : '—'
+        }))
+        .sort((a: AttendeeRow, b: AttendeeRow) => a.customerName.localeCompare(b.customerName));
 
       setAttendeeRows(rows);
 
       if (!rows.length) {
-        message.info('Chưa lấy được danh sách khách hàng từ dữ liệu vé đã thanh toán.');
+        message.info('Sự kiện này chưa có khách hàng thanh toán thành công.');
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Không tải được danh sách khách hàng.';
@@ -315,25 +350,32 @@ const EventInforPage: React.FC = () => {
     { title: 'Thời điểm mua', dataIndex: 'purchasedAt', key: 'purchasedAt', width: 180 }
   ];
 
-  const filtered = events.filter(e => {
-    if (!query) return true;
-    const q = query.toLowerCase();
-    return (String(e.title || '').toLowerCase().includes(q) || String(e.genre || '').toLowerCase().includes(q) || String(e.description || '').toLowerCase().includes(q) || String(e.location?.address || '').toLowerCase().includes(q));
-  });
-
   return (
     <OrganizerLayout>
       <div className="bg-white rounded shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Event Information</h2>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <Input.Search placeholder="Tìm sự kiện" onSearch={val => setQuery(val)} style={{ width: 300 }} allowClear />
+            <Input.Search
+              placeholder="Tìm sự kiện"
+              value={query}
+              onChange={(e) => {
+                const val = e.target.value;
+                setQuery(val);
+                if (!val.trim()) {
+                  setEvents(organizerEvents);
+                }
+              }}
+              onSearch={handleSearchEvents}
+              style={{ width: 300 }}
+              allowClear
+            />
           </div>
         </div>
 
         <Table
           rowKey={(r: any) => r._id}
-          dataSource={filtered}
+          dataSource={events}
           columns={columns}
           loading={loading}
           size="middle"

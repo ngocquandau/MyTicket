@@ -48,7 +48,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
   };
 
-  const doSearch = React.useCallback(() => {
+  const navigateToSearch = React.useCallback(() => {
     const q = keyword.trim();
     if (q) navigate(`/search?q=${encodeURIComponent(q)}`);
     else navigate('/search?all=1');
@@ -135,10 +135,10 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
                 placeholder="Tìm sự kiện, nghệ sĩ..."
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') doSearch(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') navigateToSearch(); }}
               />
               <button
-                onClick={doSearch}
+                onClick={navigateToSearch}
                 className="absolute right-3 p-1 hover:bg-gray-100 rounded-full transition-colors"
                 aria-label="Tìm kiếm"
               >

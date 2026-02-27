@@ -7,12 +7,6 @@ import { getAllEventsAPI } from '../../../services/eventService';
 
 const { Title, Text } = Typography;
 
-function getOrganizerName(ev: any) {
-  if (typeof ev.organizer === 'object' && ev.organizer?.name) return ev.organizer.name;
-  if (typeof ev.organizerName === 'string') return ev.organizerName;
-  return '';
-}
-
 function getMinPrice(tickets?: Array<{ price: string | number }>) {
   if (!tickets?.length) return 'Đang cập nhật';
   const nums = tickets
@@ -26,26 +20,52 @@ const SearchResultPage: React.FC = () => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [events, setEvents] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const SEARCH_DEBOUNCE_MS = 400;
 
   const q = (params.get('q') || '').trim();
   const showAll = params.get('all') === '1';
 
   React.useEffect(() => {
-    getAllEventsAPI()
-      .then(setEvents)
-      .catch(() => message.error('Không thể tải sự kiện'));
-  }, []);
+    let cancelled = false;
+    let timer: number | null = null;
 
-  const results = React.useMemo(() => {
-    if (showAll || q === '') return events;
-    const query = q.toLowerCase();
-    return events.filter(ev =>
-      ev.title?.toLowerCase().includes(query) ||
-      ev.location?.city?.toLowerCase().includes(query) ||
-      getOrganizerName(ev).toLowerCase().includes(query) ||
-      ev.genre?.toLowerCase().includes(query)
-    );
-  }, [q, showAll, events]);
+    const fetchEvents = async () => {
+      setLoading(true);
+      try {
+        const payload = showAll || q === ''
+          ? { limit: 30, direction: 'desc' as const, sortField: 'startDateTime' }
+          : { search: q, limit: 30, direction: 'desc' as const, sortField: 'startDateTime' };
+        const data = await getAllEventsAPI(payload);
+        if (!cancelled) {
+          setEvents(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (!cancelled) {
+          message.error('Không thể tải sự kiện');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    if (showAll || q === '') {
+      fetchEvents();
+    } else {
+      timer = window.setTimeout(fetchEvents, SEARCH_DEBOUNCE_MS);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [q, showAll]);
+
+  const results = events;
 
   return (
     <ClientLayout>
@@ -65,7 +85,9 @@ const SearchResultPage: React.FC = () => {
           </div>
         </div>
 
-        {results.length === 0 ? (
+        {loading ? (
+          <div className="py-16 text-center text-gray-600">Đang tải dữ liệu...</div>
+        ) : results.length === 0 ? (
           <div className="py-16 text-center text-gray-600">
             Không tìm thấy sự kiện phù hợp.
             <div className="mt-4">
