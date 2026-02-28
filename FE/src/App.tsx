@@ -17,7 +17,7 @@ import StatisticsPage from './pages/admin/StatisticsPage';
 import RevenuePage from './pages/organizer/RevenuePage';
 import OrganizerEventInforPage from './pages/organizer/EventInforPage';
 import OrganizerMessagesPage from './pages/organizer/MessagesPage';
-import OrganizerSettingPage from './pages/organizer/SettingPage';
+import OrganizerSettingPage from './pages/organizer/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { getUserRole } from './utils/auth';
 
@@ -55,7 +55,7 @@ const App: React.FC = () => {
         <Route path="/organizer/revenue" element={<ProtectedRoute allowedRoles={['organizer']}><RevenuePage /></ProtectedRoute>} />
         <Route path="/organizer/events" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerEventInforPage /></ProtectedRoute>} />
         <Route path="/organizer/messages" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerMessagesPage /></ProtectedRoute>} />
-        <Route path="/organizer/settings" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerSettingPage /></ProtectedRoute>} />
+        <Route path="/organizer/profile" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerSettingPage /></ProtectedRoute>} />
 
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Navigate to="/admin/events" replace /></ProtectedRoute>} />
         <Route path="/organizer" element={<ProtectedRoute allowedRoles={['organizer']}><Navigate to="/organizer/events" replace /></ProtectedRoute>} />

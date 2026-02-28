@@ -146,8 +146,8 @@ export const getEventAttendeesForOrganizer = async (req, res) => {
     }
 
     const purchaseIds = purchases.map((purchase) => purchase._id);
-    const tickets = await Ticket.find({ purchase: { $in: purchaseIds } })
-      .select('purchase seat ticketId')
+    const tickets = await Ticket.find({ purchase: { $in: purchaseIds }, isSold: true })
+      .select('purchase seat ticketId isSold')
       .lean();
 
     const ticketsByPurchaseId = new Map();

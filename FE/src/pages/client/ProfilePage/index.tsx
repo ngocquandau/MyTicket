@@ -1,9 +1,11 @@
 import React from 'react';
-import { Card, Form, Input, Button, Select, DatePicker, Typography, Spin, message } from 'antd';
+import { Card, Form, Input, Button, Select, DatePicker, Typography, Spin, message, Upload, Avatar } from 'antd';
+import type { RcFile, UploadProps } from 'antd/es/upload';
 import dayjs, { Dayjs } from 'dayjs';
 import { UserOutlined } from '@ant-design/icons';
 import ClientLayout from '../../../layouts/ClientLayout';
 import { getMyProfileAPI, updateMyProfileAPI, UserProfile } from '../../../services/userService';
+import axiosClient from '../../../services/axiosClient';
 import { handleAuthError } from '../../../utils/httpError';
 import { useNavigate } from 'react-router-dom';
 
@@ -21,6 +23,7 @@ type ProfileFormValues = {
 const ProfilePage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [form] = Form.useForm<ProfileFormValues>();
   const navigate = useNavigate();
@@ -81,6 +84,61 @@ const ProfilePage: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleUpload = async (file: RcFile) => {
+    const fd = new FormData();
+    fd.append('file', file);
+
+    if (profile?._id) {
+      // gửi cả 2 key để tương thích nếu BE đang đọc khác tên field
+      fd.append('userId', profile._id);
+      fd.append('userid', profile._id);
+    }
+
+    fd.append('imageType', 'avatar');
+
+    try {
+      setUploadingAvatar(true);
+      const res = await axiosClient.post('/api/image', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const url = res.data?.url || res.data?.secure_url;
+      if (!url) throw new Error('No url returned');
+
+      form.setFieldValue('profileImage', url);
+      message.success('Tải ảnh thành công');
+      return url;
+    } catch (err: any) {
+      message.error(err?.response?.data?.error || 'Không thể tải ảnh lên');
+      throw err;
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const uploadBefore: UploadProps['beforeUpload'] = async (file) => {
+    const isImage = file.type?.startsWith('image/');
+    if (!isImage) {
+      message.error('Chỉ hỗ trợ file ảnh');
+      return Upload.LIST_IGNORE;
+    }
+
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      message.error('Ảnh phải nhỏ hơn 5MB');
+      return Upload.LIST_IGNORE;
+    }
+
+    try {
+      await handleUpload(file as RcFile);
+    } catch {
+      // đã notify ở handleUpload
+    }
+
+    // chặn Upload tự gửi request mặc định
+    return Upload.LIST_IGNORE;
   };
 
   return (
@@ -151,8 +209,28 @@ const ProfilePage: React.FC = () => {
                   </Form.Item>
                 </div>
 
-                <Form.Item label="Ảnh đại diện (URL)" name="profileImage">
-                  <Input placeholder="https://example.com/avatar.jpg" />
+                <Form.Item label="Ảnh đại diện">
+                  <div className="flex items-center gap-4">
+                    <Avatar
+                      src={form.getFieldValue('profileImage') || profile?.profileImage}
+                      size={80}
+                      icon={<UserOutlined />}
+                    />
+                    <div>
+                      <Upload
+                        accept="image/*"
+                        showUploadList={false}
+                        beforeUpload={uploadBefore}
+                        maxCount={1}
+                      >
+                        <Button loading={uploadingAvatar}>Thay đổi hình đại diện</Button>
+                      </Upload>
+
+                      <Form.Item name="profileImage" noStyle>
+                        <Input type="hidden" />
+                      </Form.Item>
+                    </div>
+                  </div>
                 </Form.Item>
 
                 <div className="flex items-center justify-end gap-3 mt-2">

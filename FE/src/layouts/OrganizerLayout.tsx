@@ -36,7 +36,7 @@ const OrganizerLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
     { label: 'Revenue', icon: <DollarOutlined />, path: '/organizer/revenue' },
     { label: 'Event Information', icon: <LayoutOutlined />, path: '/organizer/events' },
     { label: 'Messages', icon: <MessageOutlined />, path: '/organizer/messages' },
-    { label: 'Setting', icon: <SettingOutlined />, path: '/organizer/settings' },
+    { label: 'Profile', icon: <SettingOutlined />, path: '/organizer/profile' },
   ];
 
   return (

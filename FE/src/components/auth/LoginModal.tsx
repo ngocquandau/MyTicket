@@ -77,7 +77,6 @@ const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick, onLoginSu
         <div className="w-full md:w-1/3 bg-[#E6F7FF] p-6 flex items-center justify-center rounded-l-lg">
           <div className="text-center">
             <img src={logo} alt="MyTicket Logo" className="w-32 mx-auto mb-4" onError={(e) => e.currentTarget.style.display='none'} />
-            <h3 className="text-[#23A6F0] font-bold text-xl">MyTicket</h3>
           </div>
         </div>
 

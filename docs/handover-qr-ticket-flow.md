@@ -225,14 +225,16 @@ curl -X GET "http://localhost:3000/api/purchases/tickets/T-1765031215215-273/pub
 ---
 
 ## 6) Cấu hình quan trọng
-- `PUBLIC_API_BASE_URL` phải là domain/IP có thể truy cập từ thiết bị quét QR.
-- Không dùng `localhost` nếu quét bằng điện thoại/máy khác.
+- `REACT_APP_PUBLIC_API_BASE_URL` nên được cấu hình (FE sẽ sử dụng biến env này để sinh URL tuyệt đối cho QR). Nếu không có, FE có thể fallback sang `REACT_APP_API_BASE_URL` hoặc xây dựng `runtimeBase` từ `window.location` (ví dụ `http(s)://<hostname>:3000`).
+- `REACT_APP_PUBLIC_API_BASE_URL` phải là domain/IP có thể truy cập từ thiết bị quét QR (không dùng `localhost` nếu quét bằng điện thoại/máy khác).
 
 ---
 
 ## 7) Ghi chú kỹ thuật cho BE kế nhiệm
-- QR-image hiện encode URL tới `public-image`.
-- Public endpoints dựa trên `ticketId` và trạng thái thanh toán (`paid`).
+- QR-image hiện encode URL tuyệt đối tới `public-image` (ví dụ: `https://<public-host>/api/purchases/tickets/:ticketId/public-image`). URL này được xây dựng trên FE dựa vào `REACT_APP_PUBLIC_API_BASE_URL` (hoặc `REACT_APP_API_BASE_URL` / `runtimeBase` khi biến env không cấu hình).
+- Đảm bảo endpoint public `public-image` hoạt động không cần authentication và trả về HTML chuẩn để trình duyệt/thiết bị quét có thể hiển thị ngay.
+- Public JSON endpoint `/api/purchases/tickets/:ticketId/public` cung cấp dữ liệu máy đọc (scanner app) cần: thông tin vé, payment và buyer.
+- Public endpoints phải kiểm tra trạng thái thanh toán (`paid`) và trả lỗi phù hợp (404/403) khi vé không hợp lệ.
 - Dữ liệu người mua lấy qua quan hệ `purchase.user` (populate user trong purchase).
 - Không phụ thuộc vào các API User riêng để render bảng vé điện tử.
 

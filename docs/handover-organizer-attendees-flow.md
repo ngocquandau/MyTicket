@@ -133,11 +133,15 @@ Controller `getEventAttendeesForOrganizer`:
    - `user`: `firstName lastName email phoneNumber`
    - `ticketClass`: `name price seatType`
 3. Lấy danh sách `purchaseIds`.
-4. Query `Ticket` theo `purchase in purchaseIds`.
+4. Query `Ticket` theo `purchase in purchaseIds` AND `isSold: true` (chỉ lấy những vé đã được mark là bán). Controller hiện chọn thêm trường `isSold` để rõ trạng thái.
 5. Group ticket theo `purchase`.
 6. Flatten thành `attendees[]`:
    - Mỗi ticket = 1 dòng.
    - Nếu purchase không có ticket record thì tạo fallback row (`ticketId`, `seat` rỗng).
+
+Lưu ý:
+- Vì controller bây giờ chỉ lấy `Ticket` với `isSold: true`, trường hợp một `Purchase` có `paymentStatus = 'paid'` nhưng ticket chưa được tạo hoặc chưa được mark `isSold` sẽ không xuất hiện trong nhóm ticket và sẽ được trả dưới dạng fallback row (ticketId/seat rỗng).
+- FE nên hiển thị cảnh báo/chuẩn hóa khi `seat` hoặc `ticketId` rỗng để organizer biết có inconsistency trong pipeline tạo vé.
 
 ---
 

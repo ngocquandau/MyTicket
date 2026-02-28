@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Typography, message, Dropdown, MenuProps, Avatar } from 'antd'; // Thêm Dropdown, Avatar
+import { Typography, message, Dropdown, MenuProps, Avatar, Modal, Input, Button } from 'antd'; // Thêm Dropdown, Avatar, Modal, Input, Button
 import { Link, useNavigate } from 'react-router-dom';
 import {
   QuestionCircleOutlined,
@@ -27,6 +27,9 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const [pendingRedirect, setPendingRedirect] = useState<{ path: string; state?: any } | null>(null);
   const [keyword, setKeyword] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false); // State kiểm tra đăng nhập
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [supportMessage, setSupportMessage] = useState('');
+  const [sendingSupport, setSendingSupport] = useState(false);
   const navigate = useNavigate();
 
   // Kiểm tra token khi component mount
@@ -91,16 +94,28 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     },
   ];
 
+  const openSupport = () => setIsSupportOpen(true);
+  const closeSupport = () => setIsSupportOpen(false);
+  const sendSupport = async () => {
+    if (!supportMessage.trim()) {
+      message.warning('Vui lòng nhập nội dung hỗ trợ');
+      return;
+    }
+    setSendingSupport(true);
+    // Demo: hiện message local, không gọi API
+    await new Promise((r) => setTimeout(r, 600));
+    setSendingSupport(false);
+    message.success('Tin nhắn hỗ trợ đã được gửi (demo)');
+    setSupportMessage('');
+    setIsSupportOpen(false);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Top bar */}
       <div className="bg-[#2D2D2D] text-white py-2">
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div className="text-xs flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <QuestionCircleOutlined />
-              <span>Hỗ trợ</span>
-            </div>
             <div className="flex items-center gap-2">
               <MailOutlined />
               <span>support@myticket.vn</span>
@@ -215,6 +230,43 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         onClose={() => setIsRegisterOpen(false)} 
         onLoginClick={() => { setIsRegisterOpen(false); setIsLoginOpen(true); }} 
       />
+
+      {/* Support chat modal (UI-only demo) */}
+      <Modal
+        title="Hỗ trợ"
+        open={isSupportOpen}
+        onCancel={closeSupport}
+        footer={null}
+        centered
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-gray-600">Gửi câu hỏi hoặc mô tả vấn đề. (Demo — chưa có API)</p>
+          <Input.TextArea
+            rows={6}
+            value={supportMessage}
+            onChange={(e) => setSupportMessage(e.target.value)}
+            placeholder="Mô tả vấn đề, kèm thông tin liên hệ (email hoặc SĐT)"
+          />
+          <div className="flex justify-end gap-2">
+            <Button onClick={closeSupport}>Đóng</Button>
+            <Button type="primary" onClick={sendSupport} loading={sendingSupport}>Gửi</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Floating support icon */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Button
+          type="primary"
+          shape="circle"
+          size="large"
+          onClick={openSupport}
+          style={{ backgroundColor: '#23A6F0', borderColor: '#23A6F0' }}
+          aria-label="Open support chat"
+        >
+          <QuestionCircleOutlined />
+        </Button>
+      </div>
     </div>
   );
 };

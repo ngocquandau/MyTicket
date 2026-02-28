@@ -21,7 +21,7 @@ Mục tiêu: giúp BE dev mới nắm và chạy nhanh chức năng xem/tải da
 5. Populate:
    - `user`: `firstName lastName email phoneNumber`
    - `ticketClass`: `name price seatType`
-6. Query `Ticket` theo `purchase in purchaseIds`.
+6. Query `Ticket` theo `purchase in purchaseIds` và `isSold: true` (chỉ lấy những vé đã được mark là bán).
 7. Group theo purchase và flatten thành `attendees[]` (1 ticket = 1 row).
 
 ## 4) Output FE đang dùng
@@ -62,8 +62,9 @@ Mục tiêu: giúp BE dev mới nắm và chạy nhanh chức năng xem/tải da
 3. Gọi `GET /api/organizer/:id/events` để lấy `eventId`.
 4. Gọi `GET /api/organizer/:id/events/:eventId/attendees`.
 5. Kỳ vọng:
-   - 200 + `attendees[]` nếu có data paid.
-   - 200 + `attendees: []` nếu chưa có khách paid.
+  - 200 + `attendees[]` nếu có data paid và ticket đã được tạo (`isSold: true`).
+  - 200 + `attendees: []` nếu chưa có khách paid.
+  - Lưu ý: một số `Purchase` có `paymentStatus = 'paid'` nhưng không có `Ticket` với `isSold: true` — controller sẽ trả fallback row với `ticketId`/`seat` rỗng. Đây thường do ticket chưa được tạo hoặc chưa mark `isSold` sau quy trình thanh toán.
 
 ## 7) Các lỗi thường gặp
 - `401`: token hết hạn/không hợp lệ.

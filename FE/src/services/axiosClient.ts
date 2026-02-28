@@ -1,7 +1,9 @@
 import axios from "axios";
 import { removeToken } from "../utils/auth";
 
-const BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:3000";
+const BASE_URL =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+    ?.env?.REACT_APP_API_BASE_URL || "http://localhost:3000";
 
 const axiosClient = axios.create({
   baseURL: BASE_URL, 

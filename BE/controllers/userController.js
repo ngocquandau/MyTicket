@@ -56,7 +56,7 @@ export const updateUser = async (req, res) => {
       delete req.body.role;
     }
 
-    // ✅ QUAN TRỌNG: Nếu cập nhật password, cần phải hash lại
+    // QUAN TRỌNG: Nếu cập nhật password, cần phải hash lại
     if (req.body.password) {
       const saltRounds = 10;
       req.body.password = await bcrypt.hash(req.body.password, saltRounds);
@@ -123,7 +123,7 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ error: 'Sai mật khẩu' });
     }
 
-    // ✅ Cập nhật isActive thành true
+    // Cập nhật isActive thành true
     user.isActive = true;
     await user.save();
 

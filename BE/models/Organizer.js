@@ -13,7 +13,7 @@ const organizerSchema = new mongoose.Schema({
   phoneNumber: {
     type: String,
     required: true,
-    match: /^[0-9]{9,15}$/  // chỉ cho phép số từ 9–15 chữ số
+    match: /^[0-9]{9,10}$/  // chỉ cho phép số từ 9–15 chữ số
   },
   email: {
     type: String,
