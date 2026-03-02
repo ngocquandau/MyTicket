@@ -14,6 +14,7 @@ import purchaseRoutes from './routes/purchaseRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';  
 import emailRoutes from './routes/emailRoutes.js'; 
 import imageRoutes from './routes/imageRoutes.js';
+import chatRoutes from './routes/chatRoutes.js'; 
 
 import dotenv from 'dotenv';
 const __filename = fileURLToPath(import.meta.url);
@@ -37,10 +38,11 @@ app.use('/api/organizer',   organizerRoutes);
 app.use('/api/ticket',      ticketRoutes);
 app.use('/api/voucher',     voucherRoutes);
 app.use('/api/interaction', interactionRoutes);
-app.use('/api/purchases',   purchaseRoutes); // Đổi tên cho chuẩn RESTful
+app.use('/api/purchases',   purchaseRoutes); 
 app.use('/api/payment',     paymentRoutes);
 app.use('/api/email',       emailRoutes);
 app.use('/api/image',       imageRoutes);
+app.use('/api/chat',        chatRoutes); 
 
 // Route mặc định kiểm tra server
 app.get('/', (req, res) => {

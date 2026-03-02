@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Typography, message, Dropdown, MenuProps, Avatar, Modal, Input, Button } from 'antd'; // Thêm Dropdown, Avatar, Modal, Input, Button
+import { Typography, message, Dropdown, MenuProps, Avatar } from 'antd'; 
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  QuestionCircleOutlined,
   MailOutlined,
   InstagramOutlined,
   YoutubeOutlined,
@@ -11,13 +10,16 @@ import {
   SearchOutlined,
   CreditCardOutlined,
   UserOutlined,
-  LogoutOutlined, // Icon đăng xuất
+  LogoutOutlined, 
 } from '@ant-design/icons';
 import Footer from '../components/Footer';
-import RegisterModal from '../components/auth/RegisterModal'; // Sửa lại đường dẫn import đúng case
-import LoginModal from '../components/auth/LoginModal';       // Sửa lại đường dẫn import đúng case
+import RegisterModal from '../components/auth/RegisterModal'; 
+import LoginModal from '../components/auth/LoginModal';       
 import logo from '../assets/myticket_logo.png';
 import { logoutAPI } from '../services/authService';
+
+// IMPORT COMPONENT CHATBOT MỚI TẠO Ở ĐÂY
+import AIChatBot from '../components/chat/AIChatBot';
 
 const { Title } = Typography;
 
@@ -26,17 +28,14 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [pendingRedirect, setPendingRedirect] = useState<{ path: string; state?: any } | null>(null);
   const [keyword, setKeyword] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // State kiểm tra đăng nhập
-  const [isSupportOpen, setIsSupportOpen] = useState(false);
-  const [supportMessage, setSupportMessage] = useState('');
-  const [sendingSupport, setSendingSupport] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false); 
+  
   const navigate = useNavigate();
 
-  // Kiểm tra token khi component mount
   useEffect(() => {
     const token = localStorage.getItem('token');
-    setIsLoggedIn(!!token); // Chuyển đổi sang boolean
-  }, []); // Chỉ chạy 1 lần khi mount (hoặc thêm dependencies nếu token thay đổi động)
+    setIsLoggedIn(!!token); 
+  }, []); 
 
   const handleLogout = async () => {
     try {
@@ -57,13 +56,12 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     else navigate('/search?all=1');
   }, [keyword, navigate]);
 
-  // Xử lý khi bấm "Vé của tôi"
   const handleMyTicketsClick = (e: React.MouseEvent) => {
     if (!isLoggedIn) {
-      e.preventDefault(); // Chặn chuyển trang
+      e.preventDefault(); 
       message.info('Vui lòng đăng nhập để xem vé của bạn');
       setPendingRedirect({ path: '/my-tickets' });
-      setIsLoginOpen(true); // Mở modal login
+      setIsLoginOpen(true); 
     }
   };
 
@@ -76,7 +74,6 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
   };
 
-  // Menu Dropdown cho Avatar
   const userMenu: MenuProps['items'] = [
     {
       key: '1',
@@ -90,25 +87,9 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       label: 'Đăng xuất',
       icon: <LogoutOutlined />,
       onClick: handleLogout,
-      danger: true, // Màu đỏ cho nút đăng xuất
+      danger: true, 
     },
   ];
-
-  const openSupport = () => setIsSupportOpen(true);
-  const closeSupport = () => setIsSupportOpen(false);
-  const sendSupport = async () => {
-    if (!supportMessage.trim()) {
-      message.warning('Vui lòng nhập nội dung hỗ trợ');
-      return;
-    }
-    setSendingSupport(true);
-    // Demo: hiện message local, không gọi API
-    await new Promise((r) => setTimeout(r, 600));
-    setSendingSupport(false);
-    message.success('Tin nhắn hỗ trợ đã được gửi (demo)');
-    setSupportMessage('');
-    setIsSupportOpen(false);
-  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -167,7 +148,7 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
             {/* Vé của tôi */}
             <Link 
               to="/my-tickets" 
-              onClick={handleMyTicketsClick} // Gắn hàm xử lý click
+              onClick={handleMyTicketsClick} 
               className="flex items-center gap-2 text-[#0D99FF] hover:text-[#0b7ecf] transition-colors no-underline group"
             >
               <div className="p-2 bg-blue-50 rounded-full group-hover:bg-blue-100 transition-colors">
@@ -176,21 +157,18 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
               <span className="hidden md:inline">Vé của tôi</span>
             </Link>
 
-            {/* Phân luồng hiển thị: Đã đăng nhập vs Chưa đăng nhập */}
+            {/* Phân luồng hiển thị */}
             {isLoggedIn ? (
-              // Case 1: Đã đăng nhập -> Hiển thị Avatar + Dropdown
               <Dropdown menu={{ items: userMenu }} placement="bottomRight" arrow trigger={['click']}>
                 <div className="cursor-pointer flex items-center gap-2 hover:opacity-80 transition-opacity">
                   <Avatar 
                     size="large" 
                     icon={<UserOutlined />} 
                     className="bg-[#23A6F0]" 
-                    // src="url_avatar_user" // Nếu có url avatar thì bỏ comment dòng này
                   />
                 </div>
               </Dropdown>
             ) : (
-              // Case 2: Chưa đăng nhập -> Hiển thị Login / Register
               <div className="flex items-center gap-1 text-gray-600">
                 <button 
                   onClick={() => setIsLoginOpen(true)} 
@@ -218,12 +196,12 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
       <Footer />
 
-      {/* Modals */}
+      {/* Modals Login/Register giữ nguyên */}
       <LoginModal 
         open={isLoginOpen} 
         onClose={() => setIsLoginOpen(false)} 
         onRegisterClick={() => { setIsLoginOpen(false); setIsRegisterOpen(true); }} 
-        onLoginSuccess={handleLoginSuccess} // Cập nhật state khi login thành công
+        onLoginSuccess={handleLoginSuccess} 
       />
       <RegisterModal 
         open={isRegisterOpen} 
@@ -231,42 +209,9 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         onLoginClick={() => { setIsRegisterOpen(false); setIsLoginOpen(true); }} 
       />
 
-      {/* Support chat modal (UI-only demo) */}
-      <Modal
-        title="Hỗ trợ"
-        open={isSupportOpen}
-        onCancel={closeSupport}
-        footer={null}
-        centered
-      >
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-gray-600">Gửi câu hỏi hoặc mô tả vấn đề. (Demo — chưa có API)</p>
-          <Input.TextArea
-            rows={6}
-            value={supportMessage}
-            onChange={(e) => setSupportMessage(e.target.value)}
-            placeholder="Mô tả vấn đề, kèm thông tin liên hệ (email hoặc SĐT)"
-          />
-          <div className="flex justify-end gap-2">
-            <Button onClick={closeSupport}>Đóng</Button>
-            <Button type="primary" onClick={sendSupport} loading={sendingSupport}>Gửi</Button>
-          </div>
-        </div>
-      </Modal>
+      {/* COMPONENT CHAT ĐƯỢC GỌI Ở ĐÂY */}
+      <AIChatBot />
 
-      {/* Floating support icon */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <Button
-          type="primary"
-          shape="circle"
-          size="large"
-          onClick={openSupport}
-          style={{ backgroundColor: '#23A6F0', borderColor: '#23A6F0' }}
-          aria-label="Open support chat"
-        >
-          <QuestionCircleOutlined />
-        </Button>
-      </div>
     </div>
   );
 };
