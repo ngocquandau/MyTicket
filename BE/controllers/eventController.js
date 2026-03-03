@@ -2,56 +2,83 @@ import Event        from '../models/Event.js';
 import TicketClass  from '../models/TicketClass.js';
 import Ticket       from '../models/Ticket.js';
 
-// Lấy tất cả Event
-// export const getAllEvents = async (req, res) => {
-//   try {
-//     // console.log(req.Event.id);
-//     const Events = await Event.find();
-//     res.json(Events);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
 export const getAllEvents = async (req, res) => {
   try {
     const {
-      limit = 10,
-      direction = 'asc',
-      sortField = '_id',
-      search,              // keyword search
-      ...filters
+      page = 1,
+      limit = 1000,
+      direction = 'desc',
+      sortField = 'createdAt',
+      search,
+      cursor,
+      ...rawFilters
     } = req.query;
 
-    const cursor = req.headers['cursor'] || null;
-    const sortOrder = direction === 'desc' ? -1 : 1;
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 24, 1), 200);
+    const sortOrder = String(direction).toLowerCase() === 'asc' ? 1 : -1;
 
-    // Tạo query cơ bản từ filter
-    const query = { ...filters };
+    // chỉ cho phép 1 số filter hợp lệ
+    const query = {};
+    if (rawFilters.status) query.status = rawFilters.status;
+    if (rawFilters.genre) query.genre = rawFilters.genre;
+    if (rawFilters.organizer) query.organizer = rawFilters.organizer;
 
-    // Thêm search theo title (regex, ignore case)
     if (search) {
-      query.title = { $regex: search, $options: 'i' };
+      query.$text = { $search: search };
     }
 
-    // Áp dụng cursor pagination
-    if (cursor) {
-      query[sortField] =
-        sortOrder === 1
-          ? { $gt: cursor }
-          : { $lt: cursor };
+    // hỗ trợ cursor nếu cần (không dùng khi search)
+    if (cursor && !search) {
+      query[sortField] = sortOrder === 1 ? { $gt: cursor } : { $lt: cursor };
     }
 
-    const events = await Event.find(query)
-      .sort({ [sortField]: sortOrder, _id: sortOrder }) // _id làm tie-breaker
-      .limit(parseInt(limit, 10))
-      .select('_id title posterURL startDateTime endDateTime');
+    let mongoQuery = Event.find(query);
+
+    if (search) {
+      mongoQuery = mongoQuery
+        .select({
+          _id: 1,
+          title: 1,
+          genre: 1,
+          status: 1,
+          posterURL: 1,
+          organizer: 1,
+          location: 1,
+          startDateTime: 1,
+          endDateTime: 1,
+          createdAt: 1,
+          score: { $meta: 'textScore' }
+        })
+        .sort({ score: { $meta: 'textScore' }, createdAt: -1 });
+    } else {
+      mongoQuery = mongoQuery
+        .sort({ [sortField]: sortOrder, _id: sortOrder })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum)
+        .select('_id title genre status posterURL organizer location startDateTime endDateTime createdAt');
+    }
+
+    const [events, total] = await Promise.all([
+      mongoQuery,
+      Event.countDocuments(query)
+    ]);
 
     const nextCursor =
-      events.length > 0
+      events.length > 0 && !search
         ? events[events.length - 1][sortField]
         : null;
 
-    res.json({ events, nextCursor });
+    res.json({
+      events,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      },
+      nextCursor
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
