@@ -15,12 +15,19 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import emailRoutes from './routes/emailRoutes.js'; 
 import imageRoutes from './routes/imageRoutes.js';
 import chatRoutes from './routes/chatRoutes.js'; 
+import statisticRoutes from './routes/statisticRoutes.js';
+
 
 import dotenv from 'dotenv';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '.env') });
+
+// Cấu hình DNS để tránh lỗi không thể kết nối đến MongoDB
+import dns from "node:dns/promises";
+dns.setServers(["8.8.8.8"]); 
+
 
 const app = express();
 
@@ -42,7 +49,8 @@ app.use('/api/purchases',   purchaseRoutes);
 app.use('/api/payment',     paymentRoutes);
 app.use('/api/email',       emailRoutes);
 app.use('/api/image',       imageRoutes);
-app.use('/api/chat',        chatRoutes); 
+app.use('/api/chat',        chatRoutes);
+app.use('/api/statistic',   statisticRoutes); 
 
 // Route mặc định kiểm tra server
 app.get('/', (req, res) => {

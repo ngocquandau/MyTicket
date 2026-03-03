@@ -2,56 +2,66 @@ import Event        from '../models/Event.js';
 import TicketClass  from '../models/TicketClass.js';
 import Ticket       from '../models/Ticket.js';
 
-// Lấy tất cả Event
-// export const getAllEvents = async (req, res) => {
-//   try {
-//     // console.log(req.Event.id);
-//     const Events = await Event.find();
-//     res.json(Events);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
 export const getAllEvents = async (req, res) => {
   try {
     const {
       limit = 10,
       direction = 'asc',
       sortField = '_id',
-      search,              // keyword search
+      search,
       ...filters
     } = req.query;
 
     const cursor = req.headers['cursor'] || null;
     const sortOrder = direction === 'desc' ? -1 : 1;
 
-    // Tạo query cơ bản từ filter
     const query = { ...filters };
 
-    // Thêm search theo title (regex, ignore case)
+    // SEARCH
     if (search) {
-      query.title = { $regex: search, $options: 'i' };
+      query.$text = { $search: search };
     }
 
-    // Áp dụng cursor pagination
-    if (cursor) {
+    // CURSOR pagination
+    if (cursor && !search) {
       query[sortField] =
         sortOrder === 1
           ? { $gt: cursor }
           : { $lt: cursor };
     }
 
-    const events = await Event.find(query)
-      .sort({ [sortField]: sortOrder, _id: sortOrder }) // _id làm tie-breaker
-      .limit(parseInt(limit, 10))
-      .select('_id title posterURL startDateTime endDateTime');
+    let mongoQuery = Event.find(query);
+
+    // Nếu có search → sort theo relevance
+    if (search) {
+      mongoQuery = mongoQuery
+        .select({
+          _id: 1,
+          title: 1,
+          posterURL: 1,
+          startDateTime: 1,
+          endDateTime: 1,
+          score: { $meta: 'textScore' }
+        })
+        .sort({ score: { $meta: 'textScore' } });
+    } else {
+      mongoQuery = mongoQuery
+        .sort({ [sortField]: sortOrder, _id: sortOrder })
+        .select('_id title posterURL startDateTime endDateTime');
+    }
+
+    const events = await mongoQuery.limit(parseInt(limit, 10));
 
     const nextCursor =
-      events.length > 0
+      events.length > 0 && !search
         ? events[events.length - 1][sortField]
         : null;
 
-    res.json({ events, nextCursor });
+    res.json({
+      events,
+      nextCursor
+    });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

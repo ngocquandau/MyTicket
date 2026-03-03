@@ -6,13 +6,16 @@ import {
   deleteUser,
   getUser,
   loginUser,
-  logoutUser
+  logoutUser,
+  getMyOrganizations
 } from '../controllers/userController.js';
 
 import { verifyAdmin, verifyToken } from '../middleware/auth.js';
 
 
 const router = express.Router();
+
+router.get('/my-organizations', verifyToken, getMyOrganizations);
 
 router.post   ('/',         createUser);
 router.get    ('/',         verifyToken, verifyAdmin, getAllUsers);

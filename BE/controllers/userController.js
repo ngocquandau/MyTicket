@@ -167,3 +167,20 @@ export const logoutUser = async (req, res) => {
     res.status(500).json({ error: 'Lỗi server khi đăng xuất' });
   }
 };
+
+
+// Update code 02/03/2026 about getOranizationByUserId
+export const getMyOrganizations = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const organizations = await Organizer.find({ user: userId })
+      // .populate('user', 'email role'); // optional
+
+    res.status(200).json(organizations);
+
+  } catch (err) {
+    console.error('Error in getMyOrganizations:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
