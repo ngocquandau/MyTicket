@@ -3,8 +3,15 @@ import axios from 'axios';
 
 const BASE = '/api/organizer';
 
+const getEnv = (key: string): string | undefined => {
+  return (globalThis as any)?.process?.env?.[key];
+};
+
+const ADMIN_TOKEN = getEnv('REACT_APP_ADMIN_TOKEN');
+const API_BASE_URL = getEnv('REACT_APP_API_BASE_URL');
+
 function getAbsoluteUrl(path = BASE) {
-  const base = axiosClient.defaults.baseURL || process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000';
+  const base = axiosClient.defaults.baseURL || API_BASE_URL || 'http://localhost:3000';
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
@@ -14,9 +21,9 @@ export const getAllOrganizersAPI = async () => {
     return res.data;
   } catch (err: any) {
     const status = err?.response?.status;
-    if ((status === 401 || status === 403) && process.env.REACT_APP_ADMIN_TOKEN) {
+    if ((status === 401 || status === 403) && ADMIN_TOKEN) {
       const res = await axios.get(getAbsoluteUrl(BASE), {
-        headers: { Authorization: `Bearer ${process.env.REACT_APP_ADMIN_TOKEN}` }
+        headers: { Authorization: `Bearer ${ADMIN_TOKEN}` }
       });
       return res.data;
     }
@@ -30,9 +37,9 @@ export const deleteOrganizerAPI = async (id: string) => {
     return res.data;
   } catch (err: any) {
     const status = err?.response?.status;
-    if ((status === 401 || status === 403) && process.env.REACT_APP_ADMIN_TOKEN) {
+    if ((status === 401 || status === 403) && ADMIN_TOKEN) {
       const res = await axios.delete(getAbsoluteUrl(`${BASE}/${id}`), {
-        headers: { Authorization: `Bearer ${process.env.REACT_APP_ADMIN_TOKEN}` }
+        headers: { Authorization: `Bearer ${ADMIN_TOKEN}` }
       });
       return res.data;
     }

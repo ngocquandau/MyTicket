@@ -33,10 +33,7 @@ const SearchResultPage: React.FC = () => {
     const fetchEvents = async () => {
       setLoading(true);
       try {
-        const payload = showAll || q === ''
-          ? { limit: 30, direction: 'desc' as const, sortField: 'startDateTime' }
-          : { search: q, limit: 30, direction: 'desc' as const, sortField: 'startDateTime' };
-        const data = await getAllEventsAPI(payload);
+        const data = await getAllEventsAPI();
         if (!cancelled) {
           setEvents(Array.isArray(data) ? data : []);
         }

@@ -158,18 +158,18 @@ const EventInforPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const searched = await getAllEventsAPI({
-        search: keyword,
-        limit: 100,
-        direction: 'desc',
-        sortField: 'startDateTime'
-      });
+      const searched = await getAllEventsAPI();
 
       const matchedIds = new Set(
         (Array.isArray(searched) ? searched : []).map((ev: any) => String(ev?._id || ''))
       );
 
-      const scopedResults = organizerEvents.filter((ev) => matchedIds.has(String(ev._id)));
+      const keywordUpper = keyword.toUpperCase();
+      const scopedResults = organizerEvents.filter((ev) =>
+        ev.title.toUpperCase().includes(keywordUpper) ||
+        ev.genre?.toUpperCase().includes(keywordUpper) ||
+        ev.description?.toUpperCase().includes(keywordUpper)
+      );
       setEvents(scopedResults);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Không thể tìm kiếm sự kiện.';

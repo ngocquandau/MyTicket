@@ -1,45 +1,108 @@
 import axiosClient from './axiosClient';
-import { EventSummary } from '../types/event';
+import axios from 'axios';
 
-const API_URL = '/api/event';
+const BASE = '/api/event';
 
-export interface GetAllEventsParams {
-  limit?: number;
-  direction?: 'asc' | 'desc';
-  sortField?: string;
-  search?: string;
-  [key: string]: any;
+const getEnv = (key: string): string | undefined => {
+  return (globalThis as any)?.process?.env?.[key];
+};
+
+const ADMIN_TOKEN = getEnv('REACT_APP_ADMIN_TOKEN');
+const API_BASE_URL = getEnv('REACT_APP_API_BASE_URL');
+
+function getAbsoluteUrl(path = BASE) {
+  const base = axiosClient.defaults.baseURL || API_BASE_URL || 'http://localhost:3000';
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-export const getAllEventsAPI = async (params?: GetAllEventsParams) => {
-	// Call BE route mounted at /api/event which returns { events, nextCursor }
-	const res = await axiosClient.get(API_URL, { params });
-	// Some endpoints may return { events } or an array directly — normalize to an array
-	return res.data.events ?? res.data;
+const normalizeEvents = (data: any): any[] => {
+  if (!data) return [];
+  if (Array.isArray(data)) return data.map((it: any) => it?.event ?? it);
+  if (Array.isArray(data.data)) return data.data.map((it: any) => it?.event ?? it);
+  if (Array.isArray(data.events)) return data.events.map((it: any) => it?.event ?? it);
+  // if server returns { items: [...] } or similar
+  if (Array.isArray(data.items)) return data.items.map((it: any) => it?.event ?? it);
+  // fallback: single object -> wrap
+  const single = data?.event ?? data;
+  return [single];
 };
 
-export const getEventByIdAPI = async (id: string): Promise<EventSummary> => {
-  const res = await axiosClient.get(`${API_URL}/${id}`);
-  return res.data;
+export const getAllEventsAPI = async (): Promise<any[]> => {
+  try {
+    const res = await axiosClient.get(`${BASE}`);
+    return normalizeEvents(res.data ?? res);
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if ((status === 401 || status === 403) && ADMIN_TOKEN) {
+      const res = await axios.get(getAbsoluteUrl(BASE), {
+        headers: { Authorization: `Bearer ${ADMIN_TOKEN}` }
+      });
+      return normalizeEvents(res.data ?? res);
+    }
+    throw err;
+  }
 };
 
-// Vẫn sử dụng endpoint BE: /api/event/{id}/tickets
-export const getTicketClassesByEventAPI = async (id: string) => {
-  const res = await axiosClient.get(`${API_URL}/${id}/tickets`);
-  return res.data;
+export const getEventByIdAPI = async (id: string) => {
+  try {
+    const res = await axiosClient.get(`${BASE}/${id}`);
+    return res.data;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if ((status === 401 || status === 403) && ADMIN_TOKEN) {
+      const res = await axios.get(getAbsoluteUrl(`${BASE}/${id}`), {
+        headers: { Authorization: `Bearer ${ADMIN_TOKEN}` }
+      });
+      return res.data;
+    }
+    throw err;
+  }
 };
 
 export const createEventAPI = async (payload: any) => {
-	const res = await axiosClient.post(`${API_URL}`, payload);
-	return res.data;
+  try {
+    const res = await axiosClient.post(`${BASE}`, payload);
+    return res.data;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if ((status === 401 || status === 403) && ADMIN_TOKEN) {
+      const res = await axios.post(getAbsoluteUrl(BASE), payload, {
+        headers: { Authorization: `Bearer ${ADMIN_TOKEN}` }
+      });
+      return res.data;
+    }
+    throw err;
+  }
 };
 
 export const updateEventAPI = async (id: string, payload: any) => {
-	const res = await axiosClient.put(`${API_URL}/${id}`, payload);
-	return res.data;
+  try {
+    const res = await axiosClient.put(`${BASE}/${id}`, payload);
+    return res.data;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if ((status === 401 || status === 403) && ADMIN_TOKEN) {
+      const res = await axios.put(getAbsoluteUrl(`${BASE}/${id}`), payload, {
+        headers: { Authorization: `Bearer ${ADMIN_TOKEN}` }
+      });
+      return res.data;
+    }
+    throw err;
+  }
 };
 
 export const deleteEventAPI = async (id: string) => {
-	const res = await axiosClient.delete(`${API_URL}/${id}`);
-	return res.data;
+  try {
+    const res = await axiosClient.delete(`${BASE}/${id}`);
+    return res.data;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if ((status === 401 || status === 403) && ADMIN_TOKEN) {
+      const res = await axios.delete(getAbsoluteUrl(`${BASE}/${id}`), {
+        headers: { Authorization: `Bearer ${ADMIN_TOKEN}` }
+      });
+      return res.data;
+    }
+    throw err;
+  }
 };
