@@ -38,19 +38,28 @@ const formatNumber = (value: number) =>
   new Intl.NumberFormat('vi-VN').format(value || 0);
 
 const StatisticsPage: React.FC = () => {
+  // Chu kỳ tự động làm mới thống kê: 10 phút
+  const AUTO_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
   const [overview, setOverview] = React.useState<OverviewStatistic>(EMPTY_OVERVIEW);
+  const [lastFetchedAt, setLastFetchedAt] = React.useState<string>('');
 
   const fetchOverview = React.useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axiosClient.get('/api/statistic/overview');
+      // Thêm _t để tránh cache trung gian, luôn lấy dữ liệu mới từ server
+      const res = await axiosClient.get('/api/statistic/overview', {
+        params: { _t: Date.now() },
+      });
       const data = res?.data || {};
       setOverview({
         ...EMPTY_OVERVIEW,
         ...data,
       });
+      // Lưu thời điểm FE fetch thành công gần nhất để hiển thị trên UI
+      setLastFetchedAt(new Date().toISOString());
     } catch (error: any) {
       if (handleAuthError(error, navigate, { includeForbidden: true, showMessage: false })) {
         return;
@@ -67,8 +76,19 @@ const StatisticsPage: React.FC = () => {
   }, [fetchOverview]);
 
   React.useEffect(() => {
+    // Khi mới vào trang: tải dữ liệu ngay lập tức
     fetchOverview();
-  }, [fetchOverview]);
+
+    // Sau đó tự động cập nhật mỗi 10 phút
+    const intervalId = window.setInterval(() => {
+      fetchOverview();
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    // Dọn dẹp interval khi rời trang để tránh leak
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [fetchOverview, AUTO_REFRESH_INTERVAL_MS]);
 
   // Cấu hình 3 thẻ thống kê với icon và màu sắc riêng
   const topCards = [
@@ -134,8 +154,9 @@ const StatisticsPage: React.FC = () => {
     },
   ];
 
-  const updatedText = overview.updatedAt
-    ? new Date(overview.updatedAt).toLocaleString('vi-VN')
+  // Ưu tiên mốc cập nhật từ BE; nếu BE chưa đổi thì vẫn có mốc fetch gần nhất từ FE
+  const updatedText = (overview.updatedAt || lastFetchedAt)
+    ? new Date(overview.updatedAt || lastFetchedAt).toLocaleString('vi-VN')
     : '—';
 
   return (

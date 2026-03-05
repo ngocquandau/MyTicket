@@ -55,6 +55,7 @@ const normalizeEvent = (raw: any): AnyObj => {
     title: e.title || e.name || '',
     posterURL: e.posterURL || e.posterUrl || e.image || '',
     status: (e.status || e.state || '').toString(),
+    maxCapacity: e.maxCapacity ?? e.capacity ?? e.max_capacity,
     organizer: e.organizer,
     location: e.location || e.locationAddress || e.address || null,
   };
@@ -126,9 +127,18 @@ const EventInforPage: React.FC = () => {
     }
   };
 
-  const openView = (record: any) => {
-    setSelected(normalizeEvent(record));
-    setViewOpen(true);
+  const openView = async (record: any) => {
+    try {
+      setLoading(true);
+      const detail = await getEventByIdAPI(record._id);
+      setSelected(normalizeEvent({ ...record, ...unwrapEntity(detail) }));
+    } catch {
+      setSelected(normalizeEvent(record));
+      message.warning('Không thể tải đầy đủ chi tiết sự kiện, đang hiển thị dữ liệu từ danh sách');
+    } finally {
+      setLoading(false);
+      setViewOpen(true);
+    }
   };
 
   const closeView = () => {
@@ -306,7 +316,7 @@ const filtered = React.useMemo(() => {
 
 const columns = React.useMemo(
   () => [
-    { title: '#', key: 'index', width: 40, render: (_: any, __: any, idx: number) => idx + 1 },
+    { title: '#', key: 'index', width: 50, render: (_: any, __: any, idx: number) => idx + 1 },
     {
       title: 'Poster',
       dataIndex: 'posterURL',
