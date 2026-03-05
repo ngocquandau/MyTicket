@@ -198,11 +198,11 @@ const EventDetail: React.FC = () => {
 
   return (
     <ClientLayout>
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-6 py-8 bg-[#1d3f73] ">
         {/* Phần 1: Poster & Info */}
         <div className="grid grid-cols-12 gap-8 mb-8">
-          <div className="col-span-7">
-            <div className="w-full h-[500px] rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center shadow-lg">
+          <div className="col-span-7 ">
+            <div className="w-full h-[500px] rounded-lg overflow-hidden bg-[#173564] flex items-center justify-center shadow-lg shadow-slate-400">
               <img
                 src={event.posterURL}
                 alt={event.title}
@@ -210,27 +210,27 @@ const EventDetail: React.FC = () => {
               />
             </div>
           </div>
-          <div className="col-span-5 space-y-4">
+          <div className="col-span-5 space-y-4 text-white">
             <Title level={2} className="!text-[#23A6F0]">
               {event.title}
             </Title>
-            <div className="space-y-3 text-gray-600">
+            <div className="space-y-3 text-white">
               <div className="flex items-center gap-2">
                 <CalendarOutlined />
-                <Text>
+                <Text className="text-white">
                   {timeRange}, {dateDisplay}
                 </Text>
               </div>
               <div className="flex items-center gap-2">
                 <EnvironmentOutlined />
-                <Text>{address}</Text>
+                <Text className="text-white">{address}</Text>
               </div>
             </div>
 
             {/* Organizer card moved to bottom of the page */}
 
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-              <Text className="text-gray-500 text-sm uppercase font-bold">
+              <Text className="text-gray-800 text-base uppercase font-bold">
                 Giá vé chỉ từ
               </Text>
               <div className="text-[#E04646] text-3xl font-bold mt-1">
@@ -468,7 +468,7 @@ const EventDetail: React.FC = () => {
             <Title level={4} className="!text-[#23A6F0] !m-0 mb-3 pb-4">
               ĐƠN VỊ TỔ CHỨC
             </Title>
-            <div className="bg-white p-4 rounded-lg border border-gray-100 flex items-center gap-4">
+            <div className="bg-white p-4 rounded-lg border text-gray-800 border-gray-100 flex items-center gap-4">
               <Avatar
                 size={64}
                 src={organizer.logoUrl || organizer.profileImage}

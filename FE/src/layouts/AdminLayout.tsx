@@ -44,7 +44,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   const menuItems = [
-    { label: 'Thống kê', icon: <BarChartOutlined />, path: '/admin/statistics' },
+    { label: 'Statistical Data', icon: <BarChartOutlined />, path: '/admin/statistics' },
     { label: 'Event Information', icon: <LayoutOutlined />, path: '/admin/events' },
     { label: 'Ticket Information', icon: <IdcardOutlined />, path: '/admin/tickets' },
     { label: 'Customer Information', icon: <TeamOutlined />, path: '/admin/customers' },

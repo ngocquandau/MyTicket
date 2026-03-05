@@ -14,7 +14,7 @@ import TicketInforPage from './pages/admin/TicketInforPage';
 import CustomerInforPage from './pages/admin/CustomerInforPage';
 import MessagesPage from './pages/admin/MessagesPage';
 import StatisticsPage from './pages/admin/StatisticsPage';
-import RevenuePage from './pages/organizer/RevenuePage';
+import StatisPage from './pages/organizer/StatisPage';
 import OrganizerEventInforPage from './pages/organizer/EventInforPage';
 import OrganizerMessagesPage from './pages/organizer/MessagesPage';
 import OrganizerSettingPage from './pages/organizer/ProfilePage';
@@ -52,7 +52,8 @@ const App: React.FC = () => {
         <Route path="/admin/statistics" element={<ProtectedRoute allowedRoles={['admin']}><StatisticsPage /></ProtectedRoute>} />
 
         {/* Organizer routes - chỉ organizer mới truy cập */}
-        <Route path="/organizer/revenue" element={<ProtectedRoute allowedRoles={['organizer']}><RevenuePage /></ProtectedRoute>} />
+        <Route path="/organizer/statistics" element={<ProtectedRoute allowedRoles={['organizer']}><StatisPage /></ProtectedRoute>} />
+        <Route path="/organizer/st" element={<ProtectedRoute allowedRoles={['organizer']}><Navigate to="/organizer/statistics" replace /></ProtectedRoute>} />
         <Route path="/organizer/events" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerEventInforPage /></ProtectedRoute>} />
         <Route path="/organizer/messages" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerMessagesPage /></ProtectedRoute>} />
         <Route path="/organizer/profile" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerSettingPage /></ProtectedRoute>} />

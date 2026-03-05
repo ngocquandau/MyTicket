@@ -172,7 +172,7 @@ const CheckoutPage: React.FC = () => {
 
   return (
     <ClientLayout>
-      <div className="bg-gradient-to-b from-[#F4FAFF] to-white min-h-screen">
+      <div className="bg-[#1d3f73] min-h-screen">
         <div className="container mx-auto px-6 py-6">
           <button className="flex items-center gap-2 text-[#23A6F0] mb-4" onClick={() => navigate(-1)}>
             <ArrowLeftOutlined /> <span className="font-medium">Trở về</span>

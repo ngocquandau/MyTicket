@@ -102,7 +102,13 @@ const eventSchema = new mongoose.Schema({
     timestamps: true
 });
 
-eventSchema.index({ location: '2dsphere' }); // hỗ trợ tìm kiếm sự kiện gần vị trí
+// TEXT INDEX cho search
+eventSchema.index(
+    { title: 'text', description: 'text' },
+    { weights: { title: 5, description: 2 } } // title quan trọng hơn
+);
+
+eventSchema.index({ location: '2dsphere', createdAt: 1, organizer: 1 }); // hỗ trợ tìm kiếm sự kiện gần vị trí
 
 const Event = mongoose.model('Event', eventSchema, 'events');
 export default Event;

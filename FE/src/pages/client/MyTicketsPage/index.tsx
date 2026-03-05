@@ -132,7 +132,7 @@ const MyTicketsPage: React.FC = () => {
 
   return (
     <ClientLayout>
-      <div className="bg-gray-50 min-h-screen pb-10">
+      <div className="bg-[#1d3f73] min-h-screen pb-10">
         <div className="container mx-auto px-6 py-8 ">
           <div className="flex items-center gap-3 mb-6">
             <HistoryOutlined className="text-2xl text-[#23A6F0]" />
@@ -147,7 +147,7 @@ const MyTicketsPage: React.FC = () => {
               <Button type="primary" size="large" onClick={() => navigate('/')} className="mt-6 !bg-[#23A6F0]">Khám phá ngay</Button>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-6 ">
               {purchases.map((item) => (
                 <Card key={item._id} hoverable className="rounded-xl overflow-hidden shadow-sm border-0" styles={{ body: { padding: 0 } }}>
                   <Row align="stretch">

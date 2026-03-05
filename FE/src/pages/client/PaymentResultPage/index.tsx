@@ -52,7 +52,7 @@ const PaymentResultPage: React.FC = () => {
   }, [location, navigate]);
 
   return (
-    <ClientLayout>
+    <ClientLayout >
       <div className="h-screen flex items-center justify-center">
         {loading && <Spin size="large" tip="Đang xử lý kết quả thanh toán..." />}
       </div>
