@@ -13,7 +13,7 @@ const PaymentResultPage: React.FC = () => {
     const handleResult = async () => {
       const params = new URLSearchParams(location.search);
       const resultCode = params.get('resultCode');
-      const orderId = params.get('orderId'); // Format: purchaseId_timestamp
+      const orderId = params.get('orderId'); // URL trả về của PayOS đã đính kèm orderId là purchase._id gốc
 
       if (!orderId) {
         message.error('Thông tin đơn hàng không hợp lệ');
@@ -21,8 +21,8 @@ const PaymentResultPage: React.FC = () => {
         return;
       }
 
-      // Lấy purchaseId thật từ orderId
-      const purchaseId = orderId.split('_')[0];
+      // Lấy purchaseId thật từ orderId (Do đã cấu hình trong BE nên 2 cái này giống hệt nhau)
+      const purchaseId = orderId; 
 
       if (resultCode === '0') {
         // --- TH1: Thành công ---

@@ -89,7 +89,7 @@ const CheckoutPage: React.FC = () => {
         ticketClassId: ticket.ticketClassId,
         quantity: qty,
         selectedTicketIds: isReserved ? selectedSeats : [],
-        paymentMethod: 'Momo',
+        paymentMethod: 'PayOS', // CẬP NHẬT SANG PAYOS
         voucherCode: voucher
       });
 
@@ -100,8 +100,7 @@ const CheckoutPage: React.FC = () => {
       message.loading("Đang chuyển hướng sang cổng thanh toán...", 1);
 
       const paymentRes = await createPaymentUrlAPI({
-        purchaseId: purchaseRes.purchaseId,
-        paymentMethodType: 'Napas'
+        purchaseId: purchaseRes.purchaseId // Không cần truyền paymentMethodType nữa
       });
 
       if (paymentRes && paymentRes.payUrl) {
@@ -306,10 +305,10 @@ const CheckoutPage: React.FC = () => {
                     type="primary" 
                     size="large" 
                     className="!bg-[#22C55E] w-full mt-6 h-12 text-lg font-semibold" 
-                    onClick={handleCheckoutClick} // Sử dụng hàm xử lý mới có kiểm tra tuổi
+                    onClick={handleCheckoutClick} 
                     loading={loading}
                   >
-                    Thanh toán qua MoMo
+                    Thanh toán qua PayOS (QR Code)
                   </Button>
                   
                   <div className="text-center mt-3 text-xs text-gray-500">
