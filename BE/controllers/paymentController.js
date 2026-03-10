@@ -1,16 +1,26 @@
-import * as payosPkg from '@payos/node';
+import PayOSModule from '@payos/node';
 import Purchase from '../models/Purchase.js';
 import User from '../models/User.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// TỰ ĐỘNG BÓC TÁCH CLASS PAYOS TỪ THƯ VIỆN
-// Bao phủ 100% các trường hợp: Named export, Default export, CommonJS export
-const PayOSClass = payosPkg.PayOS || payosPkg.default?.PayOS || payosPkg.default || payosPkg;
+// Tự động dò tìm constructor chuẩn của PayOS để chống crash trên Node 22
+let PayOS;
+if (typeof PayOSModule === 'function') {
+    PayOS = PayOSModule;
+} else if (PayOSModule && typeof PayOSModule.default === 'function') {
+    PayOS = PayOSModule.default;
+} else if (PayOSModule && typeof PayOSModule.PayOS === 'function') {
+    PayOS = PayOSModule.PayOS;
+} else {
+    // Đề phòng trường hợp thư viện lỗi hoặc chưa cài đặt đúng
+    console.error("PayOS Module exported as:", PayOSModule);
+    throw new Error("Không thể tìm thấy class PayOS. Hãy chạy lệnh: npm install @payos/node");
+}
 
-// Khởi tạo đối tượng PayOS với Class vừa tìm được
-const payOS = new PayOSClass(
+// Khởi tạo đối tượng PayOS an toàn
+const payOS = new PayOS(
     process.env.PAYOS_CLIENT_ID,
     process.env.PAYOS_API_KEY,
     process.env.PAYOS_CHECKSUM_KEY
@@ -32,7 +42,7 @@ export const createPaymentUrl = async (req, res) => {
         
         // Cập nhật thông tin vào Purchase record trước khi tạo link
         purchase.orderCode = orderCode;
-        purchase.paymentMethod = 'PayOS'; // Đánh dấu đây là giao dịch PayOS
+        purchase.paymentMethod = 'PayOS'; 
         await purchase.save();
 
         const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -40,8 +50,8 @@ export const createPaymentUrl = async (req, res) => {
         // Tạo cấu hình body để gửi lên PayOS
         const orderBody = {
             orderCode: orderCode,
-            amount: purchase.totalAmount, // Số tiền
-            description: `Thanh toan ve MyTicket`, // Mô tả ngắn gọn (Không có dấu)
+            amount: purchase.totalAmount,
+            description: `Thanh toan ve MyTicket`, 
             cancelUrl: `${FRONTEND_URL}/payment-result?resultCode=cancel&orderId=${purchase._id}`,
             returnUrl: `${FRONTEND_URL}/payment-result?resultCode=0&orderId=${purchase._id}`,
         };
@@ -49,7 +59,6 @@ export const createPaymentUrl = async (req, res) => {
         // Gọi API tạo link thanh toán
         const paymentLinkRes = await payOS.createPaymentLink(orderBody);
 
-        // Trả về checkoutUrl cho trình duyệt tự chuyển hướng
         if (paymentLinkRes && paymentLinkRes.checkoutUrl) {
             return res.status(200).json({ payUrl: paymentLinkRes.checkoutUrl });
         } else {
@@ -62,26 +71,21 @@ export const createPaymentUrl = async (req, res) => {
     }
 };
 
-// Xử lý Webhook (PayOS tự động gọi vào đây khi khách thanh toán thành công)
+// Xử lý Webhook 
 export const handlePayOSWebhook = async (req, res) => {
     try {
         const webhookData = req.body;
-        console.log("PayOS Webhook Data received:", webhookData);
 
-        // Code '00' nghĩa là giao dịch chuyển khoản thành công
         if (webhookData.code === "00" && webhookData.data) {
             const { orderCode } = webhookData.data;
 
-            // Tìm đơn hàng tương ứng bằng orderCode
             const purchase = await Purchase.findOne({ orderCode: orderCode });
 
             if (purchase && purchase.paymentStatus === 'pending') {
-                // Đổi trạng thái thành paid
                 purchase.paymentStatus = 'paid';
                 purchase.purchaseDate = new Date();
                 await purchase.save();
 
-                // Cập nhật thống kê chi tiêu của User
                 await User.findByIdAndUpdate(purchase.user, {
                     $inc: { 
                         totalSpent: purchase.totalAmount, 
@@ -91,12 +95,9 @@ export const handlePayOSWebhook = async (req, res) => {
                 }, { new: true });
                 
                 console.log(`[PayOS Webhook] Cập nhật thành công đơn hàng: ${purchase._id}`);
-            } else {
-                console.log(`[PayOS Webhook] Không tìm thấy đơn hàng pending cho orderCode: ${orderCode}`);
             }
         }
 
-        // Luôn phải trả về status 200 để báo cho PayOS biết hệ thống đã nhận được dữ liệu
         return res.status(200).json({ message: "Webhook processed successfully" });
 
     } catch (err) {
