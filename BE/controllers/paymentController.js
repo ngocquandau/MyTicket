@@ -1,12 +1,16 @@
-import PayOS from '@payos/node';
+import * as payosPkg from '@payos/node';
 import Purchase from '../models/Purchase.js';
 import User from '../models/User.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Khởi tạo đối tượng PayOS với cấu hình từ file .env
-const payOS = new PayOS(
+// TỰ ĐỘNG BÓC TÁCH CLASS PAYOS TỪ THƯ VIỆN
+// Bao phủ 100% các trường hợp: Named export, Default export, CommonJS export
+const PayOSClass = payosPkg.PayOS || payosPkg.default?.PayOS || payosPkg.default || payosPkg;
+
+// Khởi tạo đối tượng PayOS với Class vừa tìm được
+const payOS = new PayOSClass(
     process.env.PAYOS_CLIENT_ID,
     process.env.PAYOS_API_KEY,
     process.env.PAYOS_CHECKSUM_KEY
