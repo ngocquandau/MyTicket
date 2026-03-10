@@ -3,7 +3,6 @@ import Event      from '../models/Event.js';
 import Purchase   from '../models/Purchase.js';
 import Ticket     from '../models/Ticket.js';
 
-
 // Lấy tất cả Organizer
 export const getAllOrganizers = async (req, res) => {
   try {
@@ -133,7 +132,7 @@ export const getEventAttendeesForOrganizer = async (req, res) => {
     })
       .populate('user', 'firstName lastName email phoneNumber')
       .populate('ticketClass', 'name price seatType')
-      .select('_id user ticketClass paymentMethod paymentStatus quantity totalAmount purchaseDate createdAt')
+      .select('_id user ticketClass paymentMethod paymentStatus quantity totalAmount purchaseDate createdAt ticketId ticketCode')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -146,7 +145,9 @@ export const getEventAttendeesForOrganizer = async (req, res) => {
     }
 
     const purchaseIds = purchases.map((purchase) => purchase._id);
-    const tickets = await Ticket.find({ purchase: { $in: purchaseIds }, isSold: true })
+    
+    // Đã fix: Bỏ isSold: true để tránh bỏ sót vé chưa kịp update cờ isSold do lỗi giao dịch
+    const tickets = await Ticket.find({ purchase: { $in: purchaseIds } })
       .select('purchase seat ticketId isSold')
       .lean();
 
@@ -167,27 +168,36 @@ export const getEventAttendeesForOrganizer = async (req, res) => {
       const buyerName = [buyer.lastName, buyer.firstName].filter(Boolean).join(' ').trim() || 'Đang cập nhật';
       const ticketClass = purchase.ticketClass || {};
 
+      // TRƯỜNG HỢP 1: VÉ GENERAL (Không có document Ticket tạo sẵn)
       if (purchaseTickets.length === 0) {
-        attendees.push({
-          key: `${purchaseKey}-fallback`,
-          purchaseId: purchaseKey,
-          customerName: buyerName,
-          customerEmail: buyer.email || '',
-          customerPhone: buyer.phoneNumber || '',
-          ticketId: '',
-          ticketClassName: ticketClass.name || '',
-          seat: '',
-          seatType: ticketClass.seatType || 'general',
-          ticketPrice: Number(ticketClass.price || 0),
-          quantity: Number(purchase.quantity || 0),
-          totalAmount: Number(purchase.totalAmount || 0),
-          paymentMethod: purchase.paymentMethod || '',
-          paymentStatus: purchase.paymentStatus || '',
-          purchasedAt: purchase.purchaseDate || purchase.createdAt || null
-        });
+        const qty = Number(purchase.quantity) || 1;
+        for (let i = 0; i < qty; i++) {
+          // Lấy mã code tự định nghĩa trong Purchase (nếu có), hoặc dùng 8 kí tự cuối của mã đơn hàng
+          const baseCode = purchase.ticketCode || purchase.ticketId || purchaseKey.slice(-8).toUpperCase();
+          const displayTicketId = qty > 1 ? `${baseCode}-${i + 1}` : baseCode;
+
+          attendees.push({
+            key: `${purchaseKey}-fallback-${i}`,
+            purchaseId: purchaseKey,
+            customerName: buyerName,
+            customerEmail: buyer.email || '',
+            customerPhone: buyer.phoneNumber || '',
+            ticketId: displayTicketId,
+            ticketClassName: ticketClass.name || '',
+            seat: '—', // Vé general không có ghế
+            seatType: ticketClass.seatType || 'general',
+            ticketPrice: Number(ticketClass.price || 0),
+            quantity: 1, // Tách dòng nên quantity mỗi dòng là 1
+            totalAmount: Number(ticketClass.price || 0),
+            paymentMethod: purchase.paymentMethod || '',
+            paymentStatus: purchase.paymentStatus || '',
+            purchasedAt: purchase.purchaseDate || purchase.createdAt || null
+          });
+        }
         continue;
       }
 
+      // TRƯỜNG HỢP 2: VÉ RESERVED (Đã có sẵn document Ticket)
       for (const ticket of purchaseTickets) {
         attendees.push({
           key: ticket.ticketId || `${purchaseKey}-${ticket._id}`,
@@ -195,13 +205,13 @@ export const getEventAttendeesForOrganizer = async (req, res) => {
           customerName: buyerName,
           customerEmail: buyer.email || '',
           customerPhone: buyer.phoneNumber || '',
-          ticketId: ticket.ticketId || '',
+          ticketId: ticket.ticketId || String(ticket._id).slice(-8).toUpperCase(),
           ticketClassName: ticketClass.name || '',
-          seat: ticket.seat || '',
-          seatType: ticketClass.seatType || 'general',
+          seat: ticket.seat || '—',
+          seatType: ticketClass.seatType || 'reserved',
           ticketPrice: Number(ticketClass.price || 0),
-          quantity: Number(purchase.quantity || 0),
-          totalAmount: Number(purchase.totalAmount || 0),
+          quantity: 1,
+          totalAmount: Number(ticketClass.price || 0),
           paymentMethod: purchase.paymentMethod || '',
           paymentStatus: purchase.paymentStatus || '',
           purchasedAt: purchase.purchaseDate || purchase.createdAt || null
