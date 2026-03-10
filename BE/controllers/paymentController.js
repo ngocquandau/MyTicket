@@ -1,45 +1,27 @@
-import payosPkg from '@payos/node';
+import { createRequire } from 'module';
 import Purchase from '../models/Purchase.js';
 import User from '../models/User.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Biến lưu trữ đối tượng PayOS sau khi khởi tạo
-let payOSInstance = null;
+// 1. Dùng require chuẩn của Node.js để nạp thư viện CommonJS
+const require = createRequire(import.meta.url);
+const payosModule = require('@payos/node');
 
-// Hàm khởi tạo PayOS an toàn (Chỉ chạy khi có người click Thanh toán)
-const getPayOS = () => {
-    if (payOSInstance) return payOSInstance; // Nếu có rồi thì dùng lại
+// 2. Ép lấy đúng Class PayOS (Hỗ trợ mọi cấu trúc export của thư viện)
+const PayOS = payosModule.PayOS || payosModule.default || payosModule;
 
-    // Tự động dò tìm Class khởi tạo
-    let PayOSClass = payosPkg;
-    if (typeof payosPkg !== 'function') {
-        PayOSClass = payosPkg.default || payosPkg.PayOS;
-    }
-
-    // Nếu vẫn không tìm thấy class hợp lệ, ném lỗi ra API thay vì làm sập server
-    if (typeof PayOSClass !== 'function') {
-        console.error("=== GỠ LỖI THƯ VIỆN PAYOS ===", payosPkg);
-        throw new Error("Thư viện @payos/node bị lỗi cấu trúc. Hãy chạy lệnh: npm uninstall @payos/node && npm install @payos/node");
-    }
-
-    // Khởi tạo và lưu lại
-    payOSInstance = new PayOSClass(
-        process.env.PAYOS_CLIENT_ID,
-        process.env.PAYOS_API_KEY,
-        process.env.PAYOS_CHECKSUM_KEY
-    );
-    
-    return payOSInstance;
-};
+// 3. Khởi tạo đối tượng
+const payOS = new PayOS(
+    process.env.PAYOS_CLIENT_ID,
+    process.env.PAYOS_API_KEY,
+    process.env.PAYOS_CHECKSUM_KEY
+);
 
 // Tạo URL thanh toán PayOS
 export const createPaymentUrl = async (req, res) => {
     try {
-        // Gọi hàm khởi tạo ở đây -> An toàn tuyệt đối cho Server
-        const payOS = getPayOS();
-        
         const { purchaseId } = req.body;
         
         const purchase = await Purchase.findById(purchaseId);
@@ -47,6 +29,7 @@ export const createPaymentUrl = async (req, res) => {
             return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
         }
         
+        // Tạo orderCode duy nhất (Kiểu Number, 10 số cuối timestamp)
         const orderCode = Number(String(Date.now()).slice(-10));
         
         purchase.orderCode = orderCode;
@@ -63,6 +46,7 @@ export const createPaymentUrl = async (req, res) => {
             returnUrl: `${FRONTEND_URL}/payment-result?resultCode=0&orderId=${purchase._id}`,
         };
 
+        // Lúc này hàm createPaymentLink CHẮC CHẮN SẼ HOẠT ĐỘNG
         const paymentLinkRes = await payOS.createPaymentLink(orderBody);
 
         if (paymentLinkRes && paymentLinkRes.checkoutUrl) {
