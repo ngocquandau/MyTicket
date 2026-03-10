@@ -1,145 +1,102 @@
-//File này kết nối với MoMo.
-import axios from 'axios';
-import crypto from 'crypto';
+import PayOS from '@payos/node';
 import Purchase from '../models/Purchase.js';
-import User from '../models/User.js'; // Import User để cập nhật totalSpent
+import User from '../models/User.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const config = {
-    partnerCode: process.env.MOMO_PARTNER_CODE,
-    accessKey: process.env.MOMO_ACCESS_KEY,
-    secretKey: process.env.MOMO_SECRET_KEY,
-    endpoint: process.env.MOMO_ENDPOINT,
-    redirectUrl: process.env.MOMO_REDIRECT_URL,
-    ipnUrl: process.env.MOMO_IPN_URL
-};
+// Khởi tạo đối tượng PayOS với cấu hình từ file .env
+const payOS = new PayOS(
+    process.env.PAYOS_CLIENT_ID,
+    process.env.PAYOS_API_KEY,
+    process.env.PAYOS_CHECKSUM_KEY
+);
 
-// Tạo URL thanh toán
-// API: Tạo giao dịch thanh toán MoMo
+// Tạo URL thanh toán PayOS
 export const createPaymentUrl = async (req, res) => {
-    try {
-        const { purchaseId, paymentMethodType = 'Napas' } = req.body; // Bổ sung paymentMethodType
-        
-        const purchase = await Purchase.findById(purchaseId);
-        if (!purchase) {
-            return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
-        }
-        
-        // --- Cập nhật Request Type ---
-        // Sử dụng 'payWithMethod' cho thanh toán ATM/Credit Card
-        const requestType = "payWithMethod"; 
-        // ------------------------------
+    try {
+        const { purchaseId } = req.body;
+        
+        // Tìm đơn hàng trong DB
+        const purchase = await Purchase.findById(purchaseId);
+        if (!purchase) {
+            return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
+        }
+        
+        // Tạo orderCode duy nhất (Kiểu Number, lấy 10 số cuối của timestamp)
+        const orderCode = Number(String(Date.now()).slice(-10));
+        
+        // Cập nhật thông tin vào Purchase record trước khi tạo link
+        purchase.orderCode = orderCode;
+        purchase.paymentMethod = 'PayOS'; // Đánh dấu đây là giao dịch PayOS
+        await purchase.save();
 
-        const orderInfo = `Thanh toan don hang ${purchase._id}`;
-        const amount = purchase.totalAmount.toString();
-        const orderId = purchase._id.toString() + "_" + new Date().getTime(); 
-        const requestId = orderId;
-        const extraData = "";
-        
-        // Tạo Raw Signature (Format này không thay đổi cho 'payWithMethod')
-        // accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=$ipnUrl&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=$redirectUrl&requestId=$requestId&requestType=$requestType
-        const rawSignature = `accessKey=${config.accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${config.ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${config.partnerCode}&redirectUrl=${config.redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
+        const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
-        // Ký tên (HMAC SHA256)
-        const signature = crypto.createHmac('sha256', config.secretKey)
-            .update(rawSignature)
-            .digest('hex');
+        // Tạo cấu hình body để gửi lên PayOS
+        const orderBody = {
+            orderCode: orderCode,
+            amount: purchase.totalAmount, // Số tiền
+            description: `Thanh toan ve MyTicket`, // Mô tả ngắn gọn (Không có dấu)
+            cancelUrl: `${FRONTEND_URL}/payment-result?resultCode=cancel&orderId=${purchase._id}`,
+            returnUrl: `${FRONTEND_URL}/payment-result?resultCode=0&orderId=${purchase._id}`,
+        };
 
-        // Tạo Request Body
-        const requestBody = {
-            partnerCode: config.partnerCode,
-            accessKey: config.accessKey, // Cần accessKey cho requestType này
-            requestId: requestId,
-            amount: amount,
-            orderId: orderId,
-            orderInfo: orderInfo,
-            redirectUrl: config.redirectUrl,
-            ipnUrl: config.ipnUrl,
-            extraData: extraData,
-            requestType: requestType,
-            signature: signature,
-            lang: 'vi',
-            // --- THAM SỐ BỔ SUNG CHO PAYWITHMETHOD ---
-            payMethod: paymentMethodType, // Ví dụ: 'Napas' hoặc 'CreditCard'
-            // ------------------------------------------
-        };
+        // Gọi API tạo link thanh toán
+        const paymentLinkRes = await payOS.createPaymentLink(orderBody);
 
-        // Gửi request sang MoMo
-        const response = await axios.post(config.endpoint, requestBody, {
-            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }
-        });
+        // Trả về checkoutUrl cho trình duyệt tự chuyển hướng
+        if (paymentLinkRes && paymentLinkRes.checkoutUrl) {
+            return res.status(200).json({ payUrl: paymentLinkRes.checkoutUrl });
+        } else {
+            return res.status(400).json({ message: 'Lỗi tạo giao dịch PayOS' });
+        }
 
-        console.log("MoMo Response:", response.data);
-
-        if (response.data.resultCode === 0) {
-            // Trả về payUrl để frontend/user redirect
-            return res.status(200).json({ payUrl: response.data.payUrl });
-        } else {
-            return res.status(400).json({ message: 'Lỗi tạo giao dịch MoMo', details: response.data });
-        }
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) {
+        console.error("Lỗi khi tạo payment link:", err);
+        res.status(500).json({ error: err.message });
+    }
 };
 
-// Xử lý IPN (MoMo gọi vào đây khi thanh toán xong)
-export const handleMomoIPN = async (req, res) => {
-    try {
-        const { orderId, resultCode, signature, amount, extraData, message, orderInfo, orderType, partnerCode, payType, requestId, responseTime, transId } = req.body;
+// Xử lý Webhook (PayOS tự động gọi vào đây khi khách thanh toán thành công)
+export const handlePayOSWebhook = async (req, res) => {
+    try {
+        const webhookData = req.body;
+        console.log("PayOS Webhook Data received:", webhookData);
 
-        // Verify Signature
-        const rawSignature = `accessKey=${config.accessKey}&amount=${amount}&extraData=${extraData}&message=${message}&orderId=${orderId}&orderInfo=${orderInfo}&orderType=${orderType}&partnerCode=${partnerCode}&payType=${payType}&requestId=${requestId}&responseTime=${responseTime}&resultCode=${resultCode}&transId=${transId}`;
-        
-        const generatedSignature = crypto.createHmac('sha256', config.secretKey)
-            .update(rawSignature)
-            .digest('hex');
+        // Code '00' nghĩa là giao dịch chuyển khoản thành công
+        if (webhookData.code === "00" && webhookData.data) {
+            const { orderCode } = webhookData.data;
 
-        if (signature !== generatedSignature) {
-            return res.status(400).json({ message: 'Invalid signature' });
-        }
+            // Tìm đơn hàng tương ứng bằng orderCode
+            const purchase = await Purchase.findOne({ orderCode: orderCode });
 
-        // Nếu thanh toán thành công (resultCode = 0)
-        if (resultCode == 0) {
-            const realPurchaseId = orderId.split('_')[0]; // Lấy lại ID gốc
-            const purchase = await Purchase.findById(realPurchaseId);
+            if (purchase && purchase.paymentStatus === 'pending') {
+                // Đổi trạng thái thành paid
+                purchase.paymentStatus = 'paid';
+                purchase.purchaseDate = new Date();
+                await purchase.save();
 
-            if (purchase && purchase.paymentStatus === 'pending') {
-                purchase.paymentStatus = 'paid';
-                await purchase.save();
+                // Cập nhật thống kê chi tiêu của User
+                await User.findByIdAndUpdate(purchase.user, {
+                    $inc: { 
+                        totalSpent: purchase.totalAmount, 
+                        totalTicketsPurchase: purchase.quantity 
+                    },
+                    $set: { accumulateFlag: true } 
+                }, { new: true });
+                
+                console.log(`[PayOS Webhook] Cập nhật thành công đơn hàng: ${purchase._id}`);
+            } else {
+                console.log(`[PayOS Webhook] Không tìm thấy đơn hàng pending cho orderCode: ${orderCode}`);
+            }
+        }
 
-                // Cập nhật thống kê chi tiêu User
-            await User.findByIdAndUpdate(purchase.user, {
-                $inc: { 
-                    totalSpent: purchase.totalAmount, 
-                    totalTicketsPurchase: purchase.quantity 
-                },
-                // SỬA LỖI: Sử dụng $set rõ ràng để tránh xung đột ConflictingUpdateOperators
-                $set: { accumulateFlag: true } 
-            }, { new: true }); 
-                
-                console.log(`[IPN] Đơn hàng ${realPurchaseId} thanh toán thành công.`);
-            }
-        }
+        // Luôn phải trả về status 200 để báo cho PayOS biết hệ thống đã nhận được dữ liệu
+        return res.status(200).json({ message: "Webhook processed successfully" });
 
-        return res.status(204).send(); // MoMo yêu cầu response 204
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
-    }
-};
-
-// Xử lý Return URL (Người dùng quay lại từ MoMo)
-export const handleReturn = (req, res) => {
-    const { resultCode, orderId } = req.query;
-    
-    // URL Frontend (giả sử chạy port  3000
-    const FRONTEND_URL = process.env.FRONTEND_URL ;
-
-    // Chuyển hướng về trang kết quả của Frontend kèm tham số
-    res.redirect(`${FRONTEND_URL}/payment-result?resultCode=${resultCode}&orderId=${orderId}`);
+    } catch (err) {
+        console.error("Lỗi xử lý webhook:", err);
+        res.status(500).json({ error: err.message });
+    }
 };

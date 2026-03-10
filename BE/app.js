@@ -17,7 +17,6 @@ import imageRoutes from './routes/imageRoutes.js';
 import chatRoutes from './routes/chatRoutes.js'; 
 import statisticRoutes from './routes/statisticRoutes.js';
 
-
 import dotenv from 'dotenv';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,15 +27,24 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 import dns from "node:dns/promises";
 dns.setServers(["8.8.8.8"]); 
 
-
 const app = express();
 
-// Middleware
+// --- MIDDLEWARE (ĐÃ SỬA LẠI CORS VÀ JSON) ---
 app.use(express.json());
-app.use(cors());
+app.use(express.urlencoded({ extended: true })); // Hỗ trợ nhận diện form-data từ Webhook (nếu có)
+
+// Cấu hình CORS cực kỳ quan trọng để Vercel gọi được Render
+app.use(cors({
+    origin: [
+        'https://mticket.vercel.app', // Tên miền Production trên Vercel của bạn
+        'http://localhost:3000'       // Tên miền Development (Local)
+    ],
+    credentials: true // Bắt buộc phải có dòng này để gửi kèm Token/Cookie khi đăng nhập
+}));
+// --------------------------------------------
 
 const MONGO_URI = process.env.MONGO_URI;
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000; // Render thường dùng port 10000
 
 // Routes
 app.use('/api/user',        userRoutes);
@@ -68,7 +76,7 @@ const startServer = async () => {
     console.log('MongoDB connected');
 
     app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`Server running on port ${PORT}`);
     });
   } catch (err) {
     console.error('MongoDB Connection Error:', err.message);

@@ -36,9 +36,14 @@ const purchaseSchema = new mongoose.Schema({
         ref: 'Voucher',
         default: null
     },
+    // --- TRƯỜNG MỚI DÀNH CHO PAYOS ---
+    orderCode: { 
+        type: Number, 
+        unique: true 
+    },
     paymentMethod: {
         type: String,
-        enum: ['Momo', 'BankTransfer', 'CreditCard'], // Hiện tại ta dùng 'Momo'
+        enum: ['Momo', 'PayOS', 'BankTransfer', 'CreditCard'], // Cập nhật enum hỗ trợ PayOS
         required: true
     },
     paymentStatus: {
