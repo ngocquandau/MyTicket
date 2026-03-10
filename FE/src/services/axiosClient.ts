@@ -1,9 +1,12 @@
 import axios from "axios";
 import { removeToken } from "../utils/auth";
 
-const BASE_URL =
-  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
-    ?.env?.REACT_APP_API_BASE_URL || "http://localhost:3000";
+// Loại bỏ globalThis để Webpack (trên Vercel) nhận diện được biến môi trường.
+// Nếu trên Vercel bị thiếu biến, nó sẽ tự động lấy link Render thay vì localhost.
+const BASE_URL = process.env.REACT_APP_API_BASE_URL || "https://myticket-backend.onrender.com";
+
+// Lưu ý: Nếu đồ án của bạn dùng VITE thay vì Create React App, hãy XÓA dòng trên và dùng dòng dưới này:
+// const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://myticket-backend.onrender.com";
 
 const axiosClient = axios.create({
   baseURL: BASE_URL, 
@@ -22,7 +25,6 @@ axiosClient.interceptors.request.use((config) => {
 }, (error) => {
   return Promise.reject(error);
 });
-
 
 axiosClient.interceptors.response.use(
   (response) => response,
