@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { sendNewPassword } from '../services/emailService.js';
 
 const getSecretKey = () => {
   const secretKey = process.env.SECRET_KEY;
@@ -180,6 +181,40 @@ export const getMyOrganizations = async (req, res) => {
 
   } catch (err) {
     console.error('Error in getMyOrganizations:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+export const getNewPassword = async (req, res) => {
+  try {
+    const { email } = req.body; 
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: 'Email không tồn tại' });
+    }
+    // Tạo mật khẩu mới ngẫu nhiên
+    const newPassword = Math.random().toString(36).slice(-8); // 8 ký tự ngẫu nhiên
+
+    // Hash mật khẩu mới trước khi lưu
+    const saltRounds = 10;
+    user.password = await bcrypt.hash(newPassword, saltRounds);
+    await user.save();
+    
+    // Gửi email mật khẩu mới
+    const { success } = await sendNewPassword({ 
+      cusEmail: user.email, 
+      cusName: user.name, 
+      password: newPassword 
+    });
+
+    if (!success) {
+      return res.status(500).json({ message: 'Lỗi khi gửi email mật khẩu mới' });
+    }
+
+    res.status(200).json({ message: 'Mật khẩu mới đã được gửi đến email của bạn' });
+  } catch (err) {
+    console.error('Error in getNewPassword:', err);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 };

@@ -48,3 +48,32 @@ export const verifyAdmin = (req, res, next) => {
     res.status(500).json({ error: 'Lỗi xác thực quyền admin' });
   }
 };
+
+// Middleware cho phép pass qua 
+// nếu token hợp lệ thì add vào interaction, 
+// nếu không có token hoặc token không hợp lệ thì vẫn pass qua nhưng không add interaction (user ẩn danh)
+export const optionalAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    req.user = null;
+    return next();
+  }
+
+  try {
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, getSecretKey());
+
+    const user = await User.findById(decoded.id);
+
+    if (!user || !user.isActive) {
+      req.user = null;
+    } else {
+      req.user = decoded;
+    }
+  } catch (err) {
+    req.user = null;
+  }
+
+  next();
+};

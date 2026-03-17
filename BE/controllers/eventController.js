@@ -1,6 +1,7 @@
 import Event        from '../models/Event.js';
 import TicketClass  from '../models/TicketClass.js';
 import Ticket       from '../models/Ticket.js';
+import Interaction  from '../models/Interaction.js';
 
 export const getAllEvents = async (req, res) => {
   try {
@@ -126,9 +127,31 @@ export const deleteEvent = async (req, res) => {
 // Lấy Event theo ID
 export const getEvent = async (req, res) => {
   try {
-    // const Event = await Event.findById(req.params.id);
     const event = await Event.findById(req.params.id);
-    if (!event) return res.status(404).json({ message: 'Event not found' });
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Log interaction nếu có user
+    if (req.user?.id) {
+      try {
+        await Interaction.findOneAndUpdate(
+          {
+            user_id: req.user.id,
+            event_id: event._id
+          },
+          {
+            $inc: { click: 1 }
+          },
+          {
+            upsert: true
+          }
+        );
+      } catch (err) {
+        console.error("Interaction error:", err.message);
+      }
+    }
+
     res.json(event);
   } catch (err) {
     res.status(400).json({ error: err.message });

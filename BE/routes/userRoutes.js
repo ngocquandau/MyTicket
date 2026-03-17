@@ -7,7 +7,8 @@ import {
   getUser,
   loginUser,
   logoutUser,
-  getMyOrganizations
+  getMyOrganizations,
+  getNewPassword
 } from '../controllers/userController.js';
 
 import { verifyAdmin, verifyToken } from '../middleware/auth.js';
@@ -27,5 +28,7 @@ router.delete ('/:id',      verifyToken, verifyAdmin, deleteUser);
 
 router.post   ('/login',    loginUser);
 router.post   ('/logout',   verifyToken, logoutUser);
+
+router.post('/forgot-password', getNewPassword); 
 
 export default router;

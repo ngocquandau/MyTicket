@@ -8,14 +8,14 @@ import {
   getTicketClassesByEvent
 } from '../controllers/eventController.js';
 
-import { verifyAdmin, verifyToken } from '../middleware/auth.js';
+import { verifyAdmin, verifyToken, optionalAuth } from '../middleware/auth.js';
 
 
 const router = express.Router();
 
 router.post   ('/',     verifyToken, verifyAdmin, createEvent);
 router.get    ('/',     getAllEvents);
-router.get    ('/:id',  getEvent);
+router.get    ('/:id',  optionalAuth, getEvent);
 router.put    ('/:id',  verifyToken, verifyAdmin, updateEvent);
 router.delete ('/:id',  verifyToken, verifyAdmin, deleteEvent);
 

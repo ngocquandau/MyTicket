@@ -19,6 +19,7 @@
   "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@huggingface/hub": "^2.11.0",
     "@payos/node": "^2.0.5",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
@@ -28,6 +29,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.1.0",
+    "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.20.0",
     "mongoose": "^8.19.0",

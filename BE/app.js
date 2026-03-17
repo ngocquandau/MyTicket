@@ -16,6 +16,8 @@ import emailRoutes from './routes/emailRoutes.js';
 import imageRoutes from './routes/imageRoutes.js';
 import chatRoutes from './routes/chatRoutes.js'; 
 import statisticRoutes from './routes/statisticRoutes.js';
+import modelRoutes from './routes/modelRoutes.js';
+
 
 import dotenv from 'dotenv';
 const __filename = fileURLToPath(import.meta.url);
@@ -59,6 +61,7 @@ app.use('/api/email',       emailRoutes);
 app.use('/api/image',       imageRoutes);
 app.use('/api/chat',        chatRoutes);
 app.use('/api/statistic',   statisticRoutes); 
+app.use('/api/model',       modelRoutes);
 
 // Route mặc định kiểm tra server
 app.get('/', (req, res) => {

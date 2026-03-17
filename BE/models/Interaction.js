@@ -17,12 +17,9 @@ const interactionSchema = new mongoose.Schema({
     min: [0, 'Click count must be >= 0']
   },
   purchase: {
-    type: Boolean,
-    default: false
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: 0,
+    min: [0, 'Purchase count must be >= 0']
   }
 }, {
   timestamps: true // tự động thêm createdAt, updatedAt
