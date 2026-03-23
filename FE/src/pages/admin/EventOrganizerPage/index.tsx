@@ -137,7 +137,27 @@ const EventOrganizerPage: React.FC = () => {
 							style={{ width: 240 }}
 							allowClear
 						/>
-						<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm mới</Button>
+						<Button
+							type="primary"
+							icon={<PlusOutlined />}
+							onClick={openCreate}
+							onMouseEnter={(e) => {
+								e.currentTarget.style.backgroundColor = '#559de0';
+								e.currentTarget.style.borderColor = '#559de0';
+							}}
+							onMouseLeave={(e) => {
+								e.currentTarget.style.backgroundColor = '#66aef7';
+								e.currentTarget.style.borderColor = '#66aef7';
+							}}
+							style={{
+								backgroundColor: '#66aef7',
+								borderColor: '#66aef7',
+								boxShadow: '0 6px 14px rgba(102, 174, 247, 0.35)',
+								transition: 'background-color 0.2s ease, border-color 0.2s ease',
+							}}
+						>
+							Thêm mới
+						</Button>
 					</div>
 				</div>
 

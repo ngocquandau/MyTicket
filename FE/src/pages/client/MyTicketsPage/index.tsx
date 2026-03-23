@@ -106,9 +106,8 @@ const MyTicketsPage: React.FC = () => {
   };
 
   const buildTicketHtmlUrl = (ticketId: string) => {
-    const runtimeBase = `${window.location.protocol}//${window.location.hostname}:3000`;
-    const apiBase = (window as any).REACT_APP_PUBLIC_API_BASE_URL || (window as any).REACT_APP_API_BASE_URL || runtimeBase;
-    return `${apiBase}/api/purchases/tickets/${encodeURIComponent(ticketId)}/public-image`;
+    const publicWebBase = ((globalThis as any)?.process?.env?.REACT_APP_PUBLIC_FE_BASE_URL || window.location.origin).replace(/\/$/, '');
+    return `${publicWebBase}/ticket-info/${encodeURIComponent(ticketId)}`;
   };
 
   const handleDownloadQr = async (ticketId?: string) => {

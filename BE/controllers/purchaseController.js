@@ -294,8 +294,8 @@ export const downloadTicketQrImage = async (req, res) => {
             return res.status(403).json({ error: 'Bạn không có quyền tải QR của vé này' });
         }
 
-        const publicApiBase = process.env.PUBLIC_API_BASE_URL || 'http://localhost:3000';
-        const qrValue = `${publicApiBase}/api/purchases/tickets/${encodeURIComponent(ticket.ticketId)}/e-ticket`;
+        const publicWebBase = process.env.PUBLIC_FE_BASE_URL || 'http://localhost:3000';
+        const qrValue = `${publicWebBase.replace(/\/$/, '')}/ticket-info/${encodeURIComponent(ticket.ticketId)}`;
 
         const imageBuffer = await QRCode.toBuffer(qrValue, {
             type: 'png',

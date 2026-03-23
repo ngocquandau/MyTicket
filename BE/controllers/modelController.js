@@ -271,6 +271,12 @@ function encodeGenre(genre) {
   return map[genre] ?? 10
 }
 
+function toSafeNumber(value, fallback = 0) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return fallback
+  return n
+}
+
 export const getRecommendedList = async (req, res) => {
   try {
 
@@ -288,12 +294,15 @@ export const getRecommendedList = async (req, res) => {
 
     const gender = encodeGender(user.gender)
 
+    const safeAge = Math.max(0, toSafeNumber(age, 0))
+    const safeGender = toSafeNumber(gender, 0)
+
     const userFeatures = [
-      age,
-      gender,
-      user.avgPurchasePrice || 0,
-      user.totalSpent || 0,
-      user.totalTicketsPurchase || 0
+      safeAge,
+      safeGender,
+      Math.max(0, toSafeNumber(user.avgPurchasePrice, 0)),
+      Math.max(0, toSafeNumber(user.totalSpent, 0)),
+      Math.max(0, toSafeNumber(user.totalTicketsPurchase, 0))
     ]
 
     // genre stats
@@ -345,11 +354,11 @@ export const getRecommendedList = async (req, res) => {
 
       eventsPayload[event._id.toString()] = [
         encodeGenre(event.genre),
-        event.ageLimit || 0,
-        event.clickCount || 0,
-        event.totalTickets || 0,
-        stats.click,
-        stats.purchase
+        Math.max(0, toSafeNumber(event.ageLimit, 0)),
+        Math.max(0, toSafeNumber(event.clickCount, 0)),
+        Math.max(0, toSafeNumber(event.totalTickets, 0)),
+        Math.max(0, toSafeNumber(stats.click, 0)),
+        Math.max(0, toSafeNumber(stats.purchase, 0))
       ]
     }
 
@@ -387,7 +396,33 @@ export const getRecommendedList = async (req, res) => {
       }
     }
 
-    const data = await callModel()
+    let data
+
+    try {
+      data = await callModel()
+    } catch (err) {
+      const status = err?.response?.status
+
+      if (status === 422) {
+        console.error("Recommendation model returned 422", {
+          modelMessage: err?.response?.data,
+          userFeatures
+        })
+
+        // Fallback nhẹ để FE vẫn có dữ liệu hiển thị thay vì fail toàn bộ section
+        const fallback = events
+          .map(event => ({
+            _id: event._id,
+            title: event.title,
+            score: toSafeNumber(event.clickCount, 0)
+          }))
+          .sort((a, b) => b.score - a.score)
+
+        return res.json(fallback)
+      }
+
+      throw err
+    }
 
     const scores = data.scores || {}
 

@@ -106,9 +106,9 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
                 <Form.Item name="phone">
                   <Input placeholder="Số điện thoại" />
                 </Form.Item>
-                <Form.Item name="idCard">
+                {/* <Form.Item name="idCard">
                   <Input placeholder="Số CCCD" />
-                </Form.Item>
+                </Form.Item> */}
               </div>
             </div>
 

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Typography, Tag, Button, message } from 'antd';
 import { CalendarOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import ClientLayout from '../../../layouts/ClientLayout';
-import { getAllEventsAPI } from '../../../services/eventService';
+import { getAllEventsAPI, getRecommendedEventsAPI } from '../../../services/eventService';
 
 const { Title, Text } = Typography;
 
@@ -41,21 +41,25 @@ const SearchResultPage: React.FC = () => {
 
   const q = (params.get('q') || '').trim();
   const showAll = params.get('all') === '1';
+  const showRecommended = params.get('recommended') === '1';
 
   React.useEffect(() => {
     let cancelled = false;
     let timer: number | null = null;
+    const isSearchingByKeyword = !showRecommended && !showAll && q !== '';
 
     const fetchEvents = async () => {
       setLoading(true);
       try {
-        const data = await getAllEventsAPI();
+        const data = showRecommended
+          ? await getRecommendedEventsAPI()
+          : await getAllEventsAPI(isSearchingByKeyword ? { search: q } : undefined);
         if (!cancelled) {
           setEvents(Array.isArray(data) ? data : []);
         }
       } catch {
         if (!cancelled) {
-          message.error('Không thể tải sự kiện');
+          message.error(showRecommended ? 'Không thể tải gợi ý sự kiện' : 'Không thể tải sự kiện');
         }
       } finally {
         if (!cancelled) {
@@ -64,7 +68,7 @@ const SearchResultPage: React.FC = () => {
       }
     };
 
-    if (showAll || q === '') {
+    if (!isSearchingByKeyword) {
       fetchEvents();
     } else {
       timer = window.setTimeout(fetchEvents, SEARCH_DEBOUNCE_MS);
@@ -76,19 +80,27 @@ const SearchResultPage: React.FC = () => {
         window.clearTimeout(timer);
       }
     };
-  }, [q, showAll]);
+  }, [q, showAll, showRecommended]);
 
   const results = events;
+  const pageTitle = showRecommended ? 'Sự kiện dành cho bạn' : 'Kết quả tìm kiếm';
+  const pageSubtitle = showRecommended
+    ? `Danh sách được model gợi ý riêng cho bạn • ${results.length} kết quả`
+    : showAll || !q
+      ? `Sự kiện phù hợp • ${results.length} kết quả`
+      : '';
 
   return (
     <ClientLayout>
       <div className="container bg-[#1d3f73] mx-auto px-4 md:px-6 py-6 md:py-8 text-white">
         <div className="flex items-center justify-between mb-6 gap-4">
           <div>
-            <Title level={3} className="!m-0 !text-white !uppercase !tracking-wide">Kết quả tìm kiếm</Title>
+            <Title level={3} className="!m-0 !text-white !uppercase !tracking-wide">{pageTitle}</Title>
             <div className="mt-2 text-[#a9bdd8]">
-              {showAll || !q ? (
-                <Text className="!text-[#a9bdd8]">Sự kiện phù hợp • {results.length} kết quả</Text>
+              {showRecommended ? (
+                <Text className="!text-[#a9bdd8]">{pageSubtitle}</Text>
+              ) : showAll || !q ? (
+                <Text className="!text-[#a9bdd8]">{pageSubtitle}</Text>
               ) : (
                 <Text className="!text-[#a9bdd8]">
                   Từ khóa: <Tag className="!bg-[#122949] !border-[#335d94] !text-[#8bc1ff]">{q}</Tag> • <span>{results.length} kết quả</span>
@@ -102,7 +114,7 @@ const SearchResultPage: React.FC = () => {
           <div className="py-16 text-center text-[#9db2cf]">Đang tải dữ liệu...</div>
         ) : results.length === 0 ? (
           <div className="py-16 text-center text-[#9db2cf] border border-[#233a5e] rounded-2xl bg-[#0a1424]">
-            Không tìm thấy sự kiện phù hợp.
+            {showRecommended ? 'Chưa có đủ dữ liệu để đề xuất sự kiện phù hợp.' : 'Không tìm thấy sự kiện phù hợp.'}
             <div className="mt-4">
               <Button
                 type="default"

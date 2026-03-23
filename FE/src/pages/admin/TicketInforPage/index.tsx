@@ -52,7 +52,7 @@ const TicketInforPage: React.FC = () => {
   }, [selectedEvent]);
 
   const addRow = () => {
-    setRows(prev => [...prev, { name: '', price: 0, totalQuantity: 0, seatType, ticketList: [] }]);
+    setRows(prev => [...prev, { name: '', price: undefined, totalQuantity: undefined, seatType, ticketList: [] }]);
   };
 
   const updateRow = (index: number, patch: any) => {
@@ -214,19 +214,36 @@ const TicketInforPage: React.FC = () => {
         {rows.map((r, idx) => (
           <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
             <Input placeholder="Tên vé" value={r.name} onChange={e => updateRow(idx, { name: e.target.value })} style={{ width: 220 }} />
-            <InputNumber min={0} placeholder="Giá vé" value={r.price} onChange={v => updateRow(idx, { price: v })} formatter={v => `${v}` } style={{ width: 140 }} />
+            <InputNumber min={0} placeholder="Giá vé" value={r.price} onChange={v => updateRow(idx, { price: v })} style={{ width: 140 }} />
             {seatType === 'general' ? (
               <InputNumber min={0} placeholder="Số lượng" value={r.totalQuantity} onChange={v => updateRow(idx, { totalQuantity: v })} style={{ width: 140 }} />
             ) : (
               <Button onClick={() => openTicketList(idx)}>Danh sách ghế ({r.ticketList?.length || 0})</Button>
             )}
-            <Button type="primary" icon={<SaveOutlined />} onClick={() => saveSingleRow(idx)}>Save</Button>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={() => saveSingleRow(idx)}
+              size="middle"
+              style={{ backgroundColor: '#7db8ff', borderColor: '#7db8ff', color: '#ffffff', fontWeight: 700, boxShadow: '0 6px 14px rgba(125,184,255,0.28)' }}
+            >
+              Save
+            </Button>
             <Button danger onClick={() => removeRow(idx)}>Delete</Button>
           </div>
         ))}
 
         <div style={{ marginTop: 16, marginBottom: 24 }}>
-          <Button type="primary" onClick={createAll} loading={loading}>Confirm</Button>
+          <Button
+            type="primary"
+            onClick={createAll}
+            loading={loading}
+            size="middle"
+            icon={<SaveOutlined />}
+            style={{ backgroundColor: '#54A1FF', borderColor: '#9ac7ff', color: '#ffffff', fontWeight: 700, minWidth: 120, boxShadow: '0 7px 16px rgba(154,199,255,0.30)' }}
+          >
+            Confirm
+          </Button>
         </div>
 
         <div style={{ marginTop: 20 }}>

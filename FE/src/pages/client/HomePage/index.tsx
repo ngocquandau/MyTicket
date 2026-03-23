@@ -3,20 +3,64 @@ import { Button, Typography, message } from 'antd';
 import { LeftOutlined, RightOutlined, EnvironmentOutlined, CalendarOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import ClientLayout from '../../../layouts/ClientLayout';
-import { getAllEventsAPI } from '../../../services/eventService';
+import { getAllEventsAPI, getRecommendedEventRanksAPI, mergeRecommendedEvents } from '../../../services/eventService';
+import { getUserRole } from '../../../utils/auth';
 
 const { Title } = Typography;
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const role = getUserRole();
   const [events, setEvents] = React.useState<any[]>([]);
+  const [recommendedEvents, setRecommendedEvents] = React.useState<any[]>([]);
+  const [loadingRecommended, setLoadingRecommended] = React.useState(false);
   const [currentIndex, setCurrentIndex] = React.useState(0);
 
   React.useEffect(() => {
-    getAllEventsAPI()
-      .then(setEvents)
-      .catch(() => message.error('Không thể tải sự kiện'));
-  }, []);
+    let cancelled = false;
+
+    const loadHomeData = async () => {
+      try {
+        const allEvents = await getAllEventsAPI();
+        if (cancelled) {
+          return;
+        }
+
+        setEvents(allEvents);
+
+        if (role === 'user') {
+          setLoadingRecommended(true);
+          try {
+            const recommendations = await getRecommendedEventRanksAPI();
+            if (!cancelled) {
+              setRecommendedEvents(mergeRecommendedEvents(allEvents, recommendations));
+            }
+          } catch {
+            if (!cancelled) {
+              setRecommendedEvents([]);
+            }
+          } finally {
+            if (!cancelled) {
+              setLoadingRecommended(false);
+            }
+          }
+        } else if (!cancelled) {
+          setRecommendedEvents([]);
+        }
+      } catch {
+        if (!cancelled) {
+          message.error('Không thể tải sự kiện');
+          setLoadingRecommended(false);
+        }
+      }
+    };
+
+    loadHomeData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
 
   // Auto slide
   React.useEffect(() => {
@@ -105,11 +149,84 @@ const HomePage: React.FC = () => {
           </button>
         </div>
 
+        {role === 'user' && (
+          <div className="mt-9 md:mt-10">
+            <div className="flex items-center justify-between mb-6 gap-4">
+              <div>
+                <Title level={4} className="!text-white !m-0 !tracking-wide !uppercase !text-[26px]">SỰ KIỆN DÀNH CHO BẠN</Title>
+                <p className="mt-2 text-sm text-[#a9bdd8] mb-0">Danh sách được cá nhân hóa dành riêng cho bạn.</p>
+              </div>
+              <button onClick={() => navigate('/search?recommended=1')} className="text-sm font-bold text-red-600 hover:text-[#79b7ff] whitespace-nowrap">
+                KHÁM PHÁ NGAY &gt;&gt;&gt;
+              </button>
+            </div>
+
+            {loadingRecommended ? (
+              <div className="rounded-2xl border border-[#2a446f] bg-[#0b1422] px-5 py-10 text-center text-[#a8b6ca] shadow-[0_10px_30px_rgba(5,12,23,0.45)]">
+                Đang tải gợi ý phù hợp cho bạn...
+              </div>
+            ) : recommendedEvents.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#456c9e] bg-[#0b1422] px-5 py-10 text-center shadow-[0_10px_30px_rgba(5,12,23,0.45)]">
+                <p className="text-white text-lg font-semibold mb-2">Chưa có đủ dữ liệu để đề xuất sự kiện phù hợp.</p>
+                <p className="text-[#a8b6ca] mb-5">Bạn có thể khám phá thêm sự kiện để hệ thống hiểu rõ sở thích của mình hơn.</p>
+                <Button
+                  type="default"
+                  className="!h-10 !px-6 !rounded-full !border-[#456c9e] !bg-[#10233f] !text-[#d3e8ff] hover:!border-[#67a8ff] hover:!text-white hover:!bg-[#1a3d6d]"
+                  onClick={() => navigate('/search?all=1')}
+                >
+                  KHÁM PHÁ SỰ KIỆN
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+                {recommendedEvents.slice(0, 6).map(ev => (
+                  <div
+                    key={ev._id}
+                    className="h-full rounded-2xl overflow-hidden border border-[#2a446f] bg-[#0b1422] shadow-[0_10px_30px_rgba(5,12,23,0.45)] hover:border-[#4579bf] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
+                    onClick={() => navigate(`/event/${ev._id}`, { state: { event: ev } })}
+                  >
+                    <div className="h-52 md:h-56 overflow-hidden bg-[#101a2b] flex items-center justify-center">
+                      <img src={ev.posterURL} alt={ev.title} className="block w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                    </div>
+                    <div className="p-4 md:p-5 flex flex-col flex-1">
+                      <h3 className="font-semibold text-lg md:text-xl leading-6 min-h-[48px] mb-2 line-clamp-2 text-white">{ev.title}</h3>
+                      <div className="flex items-start gap-2 text-sm text-[#a8b6ca] min-h-[44px] mb-2">
+                        <EnvironmentOutlined />
+                        <span className="line-clamp-2 leading-5">{getLocationText(ev.location)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-[#a8b6ca] min-h-[24px] mb-4">
+                        <CalendarOutlined />
+                        <span>{formatEventDate(ev.startDateTime)}</span>
+                      </div>
+                      <div className="flex justify-between items-center mt-auto gap-3">
+                        <span className="text-xs md:text-sm px-3 py-1 rounded-full border border-[#3b6ea8] text-[#79b7ff] bg-[#0e1f36]">
+                          {getMinPrice(ev.tickets)}
+                        </span>
+                        <Button
+                          type="default"
+                          size="small"
+                          className="!h-8 !rounded-full !border-[#456c9e] !bg-[#10233f] !text-[#d3e8ff] hover:!border-[#67a8ff] hover:!text-white hover:!bg-[#1a3d6d]"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/event/${ev._id}`, { state: { event: ev } });
+                          }}
+                        >
+                          XEM CHI TIẾT
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Popular events */}
         <div className="mt-9 md:mt-10">
           <div className="flex items-center justify-between mb-6">
             <Title level={4} className="!text-white !m-0 !tracking-wide !uppercase !text-[26px]">SỰ KIỆN PHỔ BIẾN</Title>
-            <button onClick={() => navigate('/search?all=1')} className="text-sm text-[#b0c9ec] hover:text-[#79b7ff]">
+            <button onClick={() => navigate('/search?all=1')} className="text-sm font-bold text-red-600 hover:text-[#79b7ff]">
               XEM THÊM &gt;&gt;&gt;
             </button>
           </div>

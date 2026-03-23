@@ -2,6 +2,7 @@ import axiosClient from './axiosClient';
 import axios from 'axios';
 
 const BASE = '/api/event';
+const MODEL_BASE = '/api/model';
 
 const getEnv = (key: string): string | undefined => {
   return (globalThis as any)?.process?.env?.[key];
@@ -27,14 +28,53 @@ const normalizeEvents = (data: any): any[] => {
   return [single];
 };
 
-export const getAllEventsAPI = async (): Promise<any[]> => {
+type GetAllEventsParams = {
+  search?: string;
+  page?: number;
+  limit?: number;
+  direction?: 'asc' | 'desc';
+  sortField?: string;
+  status?: string;
+  genre?: string;
+  organizer?: string;
+};
+
+const normalizeRecommendedRanks = (data: any): Array<{ _id: string; title?: string; score?: number }> => {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.data)) return data.data;
+  if (Array.isArray(data.results)) return data.results;
+  if (Array.isArray(data.items)) return data.items;
+  return [];
+};
+
+export const mergeRecommendedEvents = (
+  events: any[],
+  recommendations: Array<{ _id: string; score?: number }>
+): any[] => {
+  if (!Array.isArray(events) || !Array.isArray(recommendations)) {
+    return [];
+  }
+
+  const eventMap = new Map(events.map((event) => [String(event._id), event]));
+
+  return recommendations
+    .map((item) => {
+      const event = eventMap.get(String(item._id));
+      return event ? { ...event, recommendationScore: item.score ?? 0 } : null;
+    })
+    .filter(Boolean) as any[];
+};
+
+export const getAllEventsAPI = async (params?: GetAllEventsParams): Promise<any[]> => {
   try {
-    const res = await axiosClient.get(`${BASE}`);
+    const res = await axiosClient.get(`${BASE}`, { params });
     return normalizeEvents(res.data ?? res);
   } catch (err: any) {
     const status = err?.response?.status;
     if ((status === 401 || status === 403) && ADMIN_TOKEN) {
       const res = await axios.get(getAbsoluteUrl(BASE), {
+        params,
         headers: { Authorization: `Bearer ${ADMIN_TOKEN}` }
       });
       return normalizeEvents(res.data ?? res);
@@ -57,6 +97,20 @@ export const getEventByIdAPI = async (id: string) => {
     }
     throw err;
   }
+};
+
+export const getRecommendedEventRanksAPI = async (): Promise<Array<{ _id: string; title?: string; score?: number }>> => {
+  const res = await axiosClient.get(`${MODEL_BASE}/recommended-list`);
+  return normalizeRecommendedRanks(res.data ?? res);
+};
+
+export const getRecommendedEventsAPI = async (): Promise<any[]> => {
+  const [events, recommendations] = await Promise.all([
+    getAllEventsAPI(),
+    getRecommendedEventRanksAPI(),
+  ]);
+
+  return mergeRecommendedEvents(events, recommendations);
 };
 
 export const createEventAPI = async (payload: any) => {
