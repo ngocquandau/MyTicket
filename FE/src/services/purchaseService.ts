@@ -35,3 +35,9 @@ export const getPaidTicketPublicInfoAPI = async (ticketId: string) => {
   const res = await axiosClient.get(`${PURCHASE_API_URL}/tickets/${encodeURIComponent(ticketId)}/public`);
   return res.data;
 };
+
+// === HÀM MỚI THÊM: GỌI API HỦY ĐƠN VÀ NHẢ VÉ ===
+export const cancelPurchaseAPI = async (id: string) => {
+  const res = await axiosClient.put(`${PURCHASE_API_URL}/${id}/cancel`);
+  return res.data;
+};

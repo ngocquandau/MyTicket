@@ -1,18 +1,16 @@
-import { PayOS } from '@payos/node'; // Cú pháp chuẩn của bản mới
+import { PayOS } from '@payos/node'; 
 import Purchase from '../models/Purchase.js';
 import User from '../models/User.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Khởi tạo PayOS theo cú pháp MỚI: Truyền vào 1 Object thay vì 3 biến rời rạc
 const payOS = new PayOS({
     clientId: process.env.PAYOS_CLIENT_ID,
     apiKey: process.env.PAYOS_API_KEY,
     checksumKey: process.env.PAYOS_CHECKSUM_KEY
 });
 
-// Tạo URL thanh toán PayOS
 export const createPaymentUrl = async (req, res) => {
     try {
         const { purchaseId } = req.body;
@@ -22,7 +20,6 @@ export const createPaymentUrl = async (req, res) => {
             return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
         }
         
-        // Tạo orderCode duy nhất 
         const orderCode = Number(String(Date.now()).slice(-9));
         
         purchase.orderCode = orderCode;
@@ -37,9 +34,10 @@ export const createPaymentUrl = async (req, res) => {
             description: `Thanh toan ve MyTicket`, 
             cancelUrl: `${FRONTEND_URL}/payment-result?resultCode=cancel&orderId=${purchase._id}`,
             returnUrl: `${FRONTEND_URL}/payment-result?resultCode=0&orderId=${purchase._id}`,
+            // TỰ ĐỘNG HẾT HẠN MÃ QR SAU 15 PHÚT
+            expiredAt: Math.floor(Date.now() / 1000) + (15 * 60)
         };
 
-        // GỌI HÀM THEO CHUẨN MỚI NHẤT CỦA PAYOS (Bản cũ là createPaymentLink)
         const paymentLinkRes = await payOS.paymentRequests.create(orderBody);
 
         if (paymentLinkRes && paymentLinkRes.checkoutUrl) {
@@ -54,7 +52,6 @@ export const createPaymentUrl = async (req, res) => {
     }
 };
 
-// Xử lý Webhook (Giữ nguyên vì logic xử lý payload không đổi)
 export const handlePayOSWebhook = async (req, res) => {
     try {
         const webhookData = req.body;

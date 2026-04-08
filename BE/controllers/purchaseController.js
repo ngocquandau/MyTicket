@@ -51,7 +51,6 @@ const ensurePurchaseTickets = async (purchaseDoc) => {
 
     let missing = quantity - linkedTickets.length;
 
-    // Backfill dữ liệu lịch sử: lấy các vé đã bán cùng hạng nhưng chưa gắn purchase
     const legacyTickets = await Ticket.find({
         ticketClass: ticketClassId,
         isSold: true,
@@ -71,7 +70,6 @@ const ensurePurchaseTickets = async (purchaseDoc) => {
     linkedTickets = await Ticket.find({ purchase: purchaseId }).select('seat ticketId qrCode isSold');
     missing = quantity - linkedTickets.length;
 
-    // Nếu vẫn thiếu và là vé tự do, tạo bù để người dùng có mã QR dùng ngay
     if (missing > 0 && seatType === 'general') {
         const ticketName = purchase.ticketClass?.name || 'General';
         const createdTickets = Array.from({ length: missing }).map(() => ({
@@ -89,17 +87,13 @@ const ensurePurchaseTickets = async (purchaseDoc) => {
     return linkedTickets;
 };
 
-// Hàm tạo vé (Helper)
 const createTicketsPlaceholder = async (ticketClass, quantity, purchaseId, session) => {
     const ticketsData = Array.from({ length: quantity }).map((_, index) => {
         let seatName;
         
         if (ticketClass.seatType === 'reserved') {
-            // Nếu vé có ghế (đã chọn từ trước), ta không tạo vé mới mà chỉ update vé cũ.
-            // Hàm này chủ yếu dùng cho vé General.
             seatName = `RSV-${Date.now()}-${index}`; 
         } else {
-            // Vé tự do -> Tạo tên theo Hạng vé
             seatName = `${ticketClass.name} - #${Math.floor(1000 + Math.random() * 9000)}`;
         }
 
@@ -123,21 +117,17 @@ export const createPurchase = async (req, res) => {
         const { ticketClassId, quantity, voucherCode, paymentMethod, selectedTicketIds } = req.body;
         const userId = req.user.id;
 
-        // 1. Kiểm tra Ticket Class
         const tc = await TicketClass.findById(ticketClassId).session(session);
         if (!tc) throw new Error('Hạng vé không tồn tại');
         if (tc.status !== 'available') throw new Error('Hạng vé này hiện không khả dụng');
 
-        // 2. Logic Xử lý Vé
         let ticketRecords = [];
 
         if (tc.seatType === 'reserved') {
-            // --- TRƯỜNG HỢP VÉ CÓ GHẾ (RESERVED) ---
             if (!selectedTicketIds || selectedTicketIds.length !== quantity) {
                 throw new Error(`Vui lòng chọn đủ ${quantity} ghế.`);
             }
 
-            // Kiểm tra ghế còn trống không (tránh race condition)
             const ticketsToCheck = await Ticket.find({
                 _id: { $in: selectedTicketIds },
                 ticketClass: ticketClassId,
@@ -151,25 +141,21 @@ export const createPurchase = async (req, res) => {
             ticketRecords = ticketsToCheck;
 
         } else {
-            // --- TRƯỜNG HỢP VÉ TỰ DO (GENERAL) ---
             const remaining = tc.totalQuantity - (tc.soldQuantity || 0);
             if (quantity > remaining) {
                 throw new Error(`Chỉ còn lại ${remaining} vé.`);
             }
 
-            // Tạo vé mới cho loại General
             const ticketsData = Array.from({ length: quantity }).map((_, index) => ({
                 ticketClass: tc._id,
                 seat: `${tc.name} - Tự do`,
                 isSold: true,
                 ticketId: `GEN-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-                // Purchase ID update sau
             }));
             
             ticketRecords = await Ticket.insertMany(ticketsData, { session });
         }
 
-        // 3. Kiểm tra Event & User
         const event = await Event.findById(tc.event).session(session);
         if (!event) throw new Error('Sự kiện không tồn tại');
         
@@ -179,7 +165,6 @@ export const createPurchase = async (req, res) => {
             if (age < event.ageLimit) throw new Error(`Yêu cầu độ tuổi tối thiểu: ${event.ageLimit}`);
         }
 
-        // 4. Tính tiền & Voucher
         let originalPrice = tc.price * quantity;
         let finalAmount = originalPrice;
         let voucherUsed = null;
@@ -197,7 +182,6 @@ export const createPurchase = async (req, res) => {
             finalAmount = Math.max(0, originalPrice - discount);
         }
 
-        // 5. Tạo Purchase Record
         const newPurchase = new Purchase({
             user: userId,
             event: tc.event,
@@ -211,7 +195,6 @@ export const createPurchase = async (req, res) => {
         });
         await newPurchase.save({ session });
 
-        // 6. Cập nhật Vé (Ticket) -> Link với Purchase & Đánh dấu đã bán
         const ticketIdsToUpdate = ticketRecords.map(t => t._id);
         
         await Ticket.updateMany(
@@ -220,12 +203,10 @@ export const createPurchase = async (req, res) => {
             { session }
         );
 
-        // 7. Cập nhật số lượng đã bán của TicketClass
         tc.soldQuantity += quantity;
         if (tc.soldQuantity >= tc.totalQuantity) tc.status = 'sold_out';
         await tc.save({ session });
 
-        // 8. Cập nhật Voucher
         if (voucherUsed) {
             voucherUsed.usedCount += 1;
             await voucherUsed.save({ session });
@@ -252,7 +233,7 @@ export const getMyPurchases = async (req, res) => {
     try {
         const userId = req.user.id;
         const purchases = await Purchase.find({ user: userId, paymentStatus: 'paid' })
-            .populate('event', 'title startDateTime location posterURL seatImgUrl')
+            .populate('event', 'title startDateTime endDateTime location posterURL seatImgUrl')
             .populate('ticketClass', 'name price seatType')
             .sort({ createdAt: -1 });
 
@@ -294,8 +275,8 @@ export const downloadTicketQrImage = async (req, res) => {
             return res.status(403).json({ error: 'Bạn không có quyền tải QR của vé này' });
         }
 
-        const publicWebBase = process.env.PUBLIC_FE_BASE_URL || 'http://localhost:3000';
-        const qrValue = `${publicWebBase.replace(/\/$/, '')}/ticket-info/${encodeURIComponent(ticket.ticketId)}`;
+        const publicApiBase = process.env.PUBLIC_API_BASE_URL || 'http://localhost:3000';
+        const qrValue = `${publicApiBase}/api/purchases/tickets/${encodeURIComponent(ticket.ticketId)}/e-ticket`;
 
         const imageBuffer = await QRCode.toBuffer(qrValue, {
             type: 'png',
@@ -590,5 +571,111 @@ export const getPaidTicketPublicImage = async (req, res) => {
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: err.message });
+    }
+};
+
+// === CÁC API MỚI BỔ SUNG ĐỂ XỬ LÝ HỦY ĐƠN VÀ NHẢ VÉ ===
+
+// 1. Hàm hủy đơn hàng và nhả vé (Dùng khi khách bấm Hủy trên web)
+export const cancelPurchase = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const { id } = req.params;
+        const purchase = await Purchase.findById(id).session(session);
+
+        if (!purchase || purchase.paymentStatus !== 'pending') {
+            throw new Error('Đơn hàng không hợp lệ hoặc đã được xử lý');
+        }
+
+        purchase.paymentStatus = 'cancelled';
+        await purchase.save({ session });
+
+        await Ticket.updateMany(
+            { purchase: purchase._id },
+            { $set: { isSold: false, purchase: null } },
+            { session }
+        );
+
+        const tc = await TicketClass.findById(purchase.ticketClass).session(session);
+        if (tc) {
+            tc.soldQuantity = Math.max(0, tc.soldQuantity - purchase.quantity);
+            if (tc.soldQuantity < tc.totalQuantity) {
+                tc.status = 'available';
+            }
+            await tc.save({ session });
+        }
+
+        await session.commitTransaction();
+        res.status(200).json({ message: 'Đã hủy đơn hàng và hoàn trả vé thành công' });
+
+    } catch (err) {
+        await session.abortTransaction();
+        console.error("Lỗi khi hủy đơn:", err);
+        res.status(400).json({ error: err.message });
+    } finally {
+        session.endSession();
+    }
+};
+
+// 2. API dành riêng cho webhook Cron-job.org gọi vào để dọn vé kẹt
+export const cancelExpiredPurchases = async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return res.status(401).json({ message: "Truy cập bị từ chối" });
+    }
+
+    try {
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+
+        const expiredPurchases = await Purchase.find({
+            paymentStatus: 'pending',
+            createdAt: { $lt: fifteenMinutesAgo }
+        });
+
+        let canceledCount = 0;
+
+        for (const purchase of expiredPurchases) {
+            const session = await mongoose.startSession();
+            session.startTransaction();
+
+            try {
+                purchase.paymentStatus = 'failed';
+                await purchase.save({ session });
+
+                await Ticket.updateMany(
+                    { purchase: purchase._id },
+                    { $set: { isSold: false, purchase: null } },
+                    { session }
+                );
+
+                const tc = await TicketClass.findById(purchase.ticketClass).session(session);
+                if (tc) {
+                    tc.soldQuantity = Math.max(0, tc.soldQuantity - purchase.quantity);
+                    if (tc.soldQuantity < tc.totalQuantity) {
+                        tc.status = 'available';
+                    }
+                    await tc.save({ session });
+                }
+
+                await session.commitTransaction();
+                canceledCount++;
+            } catch (err) {
+                await session.abortTransaction();
+                console.error(`Lỗi hủy đơn tự động ${purchase._id}:`, err);
+            } finally {
+                session.endSession();
+            }
+        }
+
+        return res.status(200).json({ 
+            message: "Đã chạy Cron Job thành công", 
+            canceledTickets: canceledCount 
+        });
+
+    } catch (error) {
+        console.error("Lỗi Cron Job:", error);
+        return res.status(500).json({ error: error.message });
     }
 };

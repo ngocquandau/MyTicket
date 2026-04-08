@@ -1,4 +1,6 @@
 import User from '../models/User.js';
+// Thêm import Organizer để dùng trong hàm getMyOrganizations
+import Organizer from '../models/Organizer.js'; 
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { sendNewPassword } from '../services/emailService.js';
@@ -169,7 +171,7 @@ export const logoutUser = async (req, res) => {
   }
 };
 
-
+// Lấy danh sách tổ chức của User
 export const getMyOrganizations = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -185,6 +187,7 @@ export const getMyOrganizations = async (req, res) => {
   }
 };
 
+// Gửi mật khẩu mới qua Email
 export const getNewPassword = async (req, res) => {
   try {
     const { email } = req.body; 

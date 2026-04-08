@@ -8,7 +8,7 @@ import { handleAuthError } from '../../../utils/httpError';
 
 const { Title, Text } = Typography;
 
-// Cập nhật Interface để bao gồm seatType
+// Gộp chung Interface đầy đủ nhất
 interface PurchaseItem {
   _id: string;
   totalAmount: number;
@@ -19,13 +19,14 @@ interface PurchaseItem {
     _id: string;
     title: string;
     startDateTime: string;
+    endDateTime: string;
     posterURL: string;
     location: { address: string };
   };
   ticketClass: {
     name: string;
     price: number;
-    seatType: 'general' | 'reserved'; // ✅ Thêm trường này để check loại vé
+    seatType: 'general' | 'reserved';
   };
   ticketList: {
     seat: string;
@@ -41,7 +42,7 @@ const MyTicketsPage: React.FC = () => {
   // State cho Modal QR
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentTicketList, setCurrentTicketList] = useState<any[]>([]);
-  const [currentSeatType, setCurrentSeatType] = useState<'general' | 'reserved'>('general'); // ✅ Lưu loại vé đang xem QR
+  const [currentSeatType, setCurrentSeatType] = useState<'general' | 'reserved'>('general');
   const fetchedRef = useRef(false);
 
   useEffect(() => {
@@ -52,7 +53,14 @@ const MyTicketsPage: React.FC = () => {
       try {
         const data = await getMyPurchasesAPI();
         if (Array.isArray(data)) {
-          setPurchases(data);
+          const now = new Date();
+          // LỌC: Chỉ lấy vé sự kiện chưa bắt đầu (Từ bản 2)
+          const upcomingPurchases = data.filter(p => p.event?.startDateTime && new Date(p.event.startDateTime) > now);
+          
+          // SẮP XẾP: Ngày bắt đầu gần hiện tại nhất lên đầu
+          upcomingPurchases.sort((a, b) => new Date(a.event.startDateTime).getTime() - new Date(b.event.startDateTime).getTime());
+          
+          setPurchases(upcomingPurchases);
         } else {
           setPurchases([]);
         }
@@ -69,7 +77,6 @@ const MyTicketsPage: React.FC = () => {
     fetchTickets();
   }, [navigate]);
 
-  // ✅ Cập nhật hàm mở Modal để nhận thêm seatType
   const showQRModal = (tickets: any[], seatType: 'general' | 'reserved') => {
     if (!tickets || tickets.length === 0) {
       message.warning('Vé này chưa có mã QR. Vui lòng chờ hệ thống đồng bộ mã vé.');
@@ -78,7 +85,7 @@ const MyTicketsPage: React.FC = () => {
     const sampleTicketId = tickets?.[0]?.ticketId;
     const sampleUrl = sampleTicketId ? buildTicketHtmlUrl(sampleTicketId) : '';
     if (sampleUrl.includes('localhost') || sampleUrl.includes('127.0.0.1')) {
-      message.warning('QR đang trỏ về localhost, điện thoại khác thiết bị sẽ không mở được. Hãy cấu hình REACT_APP_PUBLIC_API_BASE_URL bằng IP LAN hoặc domain public.');
+      message.warning('QR đang trỏ về localhost, điện thoại khác thiết bị sẽ không mở được. Hãy cấu hình lại IP LAN hoặc domain public.');
     }
     setCurrentTicketList(tickets || []);
     setCurrentSeatType(seatType);
@@ -97,7 +104,6 @@ const MyTicketsPage: React.FC = () => {
     }
   };
 
-  // ✅ Hàm helper để hiển thị nhãn ghế
   const renderSeatLabel = (seat: string, type: 'general' | 'reserved') => {
     if (type === 'reserved') {
         return `Ghế ngồi cố định: ${seat}`;
@@ -105,9 +111,11 @@ const MyTicketsPage: React.FC = () => {
     return 'Vé tự do (Vào cổng)';
   };
 
+  // Sử dụng logic tạo URL mã QR trỏ về API Backend xuất vé HTML (Từ bản 2)
   const buildTicketHtmlUrl = (ticketId: string) => {
-    const publicWebBase = ((globalThis as any)?.process?.env?.REACT_APP_PUBLIC_FE_BASE_URL || window.location.origin).replace(/\/$/, '');
-    return `${publicWebBase}/ticket-info/${encodeURIComponent(ticketId)}`;
+    const runtimeBase = `${window.location.protocol}//${window.location.hostname}:3000`;
+    const apiBase = (window as any).REACT_APP_PUBLIC_API_BASE_URL || (window as any).REACT_APP_API_BASE_URL || runtimeBase;
+    return `${apiBase}/api/purchases/tickets/${encodeURIComponent(ticketId)}/public-image`;
   };
 
   const handleDownloadQr = async (ticketId?: string) => {
@@ -133,17 +141,32 @@ const MyTicketsPage: React.FC = () => {
     <ClientLayout>
       <div className="bg-[#1d3f73] min-h-screen pb-10">
         <div className="container mx-auto px-6 py-8 ">
-          <div className="flex items-center gap-3 mb-6">
-            <HistoryOutlined className="text-2xl text-[#23A6F0]" />
-            <Title level={2} className="!text-[#23A6F0] !m-0">Vé của tôi</Title>
+          
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-3">
+              <QrcodeOutlined className="text-2xl text-[#23A6F0]" />
+              <Title level={2} className="!text-[#23A6F0] !m-0">Vé sắp diễn ra</Title>
+            </div>
+            {/* NÚT CHUYỂN SANG LỊCH SỬ MUA VÉ (Giữ từ bản 2) */}
+            <Button 
+              type="default" 
+              icon={<HistoryOutlined />}
+              className="!text-white !bg-transparent border-white hover:!bg-white hover:!text-[#1d3f73]"
+              onClick={() => navigate('/purchase-history')}
+            >
+              Lịch sử mua vé
+            </Button>
           </div>
 
           {loading ? (
             <div className="flex justify-center h-60 items-center"><Spin size="large" /></div>
           ) : purchases.length === 0 ? (
             <div className="flex flex-col items-center justify-center bg-white rounded-xl shadow-sm p-12 min-h-[400px]">
-              <Empty description={<span className="text-gray-500 text-lg">Bạn chưa mua vé sự kiện nào</span>} />
-              <Button type="primary" size="large" onClick={() => navigate('/')} className="mt-6 !bg-[#23A6F0]">Khám phá ngay</Button>
+              <Empty description={<span className="text-gray-500 text-lg">Bạn chưa có vé sự kiện nào sắp diễn ra</span>} />
+              <div className="flex gap-4 mt-6">
+                <Button type="primary" size="large" onClick={() => navigate('/')} className="!bg-[#23A6F0]">Khám phá sự kiện</Button>
+                <Button size="large" onClick={() => navigate('/purchase-history')}>Xem lịch sử mua vé</Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-6 ">
@@ -178,7 +201,8 @@ const MyTicketsPage: React.FC = () => {
                           <div className="space-y-1.5 mb-3 text-gray-600">
                             <div className="flex items-center gap-2">
                               <CalendarOutlined className="text-[#23A6F0]" />
-                              <span className="text-[16px] leading-tight font-medium">{formatDate(item.event?.startDateTime)}</span>
+                              {/* Highlight ngày sự kiện theo màu cam từ bản 2 */}
+                              <span className="text-[16px] leading-tight font-medium text-orange-600">{formatDate(item.event?.startDateTime)}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <EnvironmentOutlined className="text-[#23A6F0]" />
@@ -202,14 +226,12 @@ const MyTicketsPage: React.FC = () => {
                                 </div>
                              </div>
 
-                             {/* Danh sách vé chi tiết */}
                               <div>
                                 <span className="text-gray-500 block mb-1 text-xs uppercase font-semibold tracking-wider">Chi tiết vé:</span>
                                 <div className="flex flex-wrap gap-2">
                                   {item.ticketList && item.ticketList.length > 0 ? (
                                     item.ticketList.map((ticket, idx) => (
                                       <Tag key={idx} color={item.ticketClass?.seatType === 'reserved' ? 'purple' : 'blue'} className="px-3 py-1 text-sm rounded border-opacity-50">
-                                        {/* ✅ Hiển thị loại ghế rõ ràng */}
                                         {renderSeatLabel(ticket.seat, item.ticketClass?.seatType)}
                                         <span className="opacity-50 mx-2">|</span> 
                                         <span className="font-mono text-xs">{ticket.ticketId}</span>
@@ -228,10 +250,9 @@ const MyTicketsPage: React.FC = () => {
                             type="primary" 
                             icon={<QrcodeOutlined />} 
                             className="!bg-[#23A6F0]" 
-                            // Truyền thêm loại vé vào hàm mở modal
                             onClick={() => showQRModal(item.ticketList, item.ticketClass?.seatType)}
                           >
-                            QR thông tin vé
+                            Quét QR Check-in
                           </Button>
                         </div>
                       </div>
@@ -256,7 +277,6 @@ const MyTicketsPage: React.FC = () => {
                 {currentTicketList && currentTicketList.length > 0 ? (
                     currentTicketList.map((t, idx) => (
                         <div key={idx} className="flex flex-col items-center border-b pb-6 last:border-0 border-dashed border-gray-300">
-                            {/* ✅ Hiển thị loại ghế trong Modal */}
                             <Tag color={currentSeatType === 'reserved' ? 'purple' : 'blue'} className="text-base px-3 py-1 mb-3 font-semibold">
                                 {renderSeatLabel(t.seat, currentSeatType)}
                             </Tag>
@@ -267,20 +287,13 @@ const MyTicketsPage: React.FC = () => {
                             <Text copyable className="mt-3 font-mono text-gray-600 bg-gray-100 px-3 py-1 rounded">
                                 {t.ticketId}
                             </Text>
-                            <Button
-                              type="default"
-                              icon={<DownloadOutlined />}
-                              className="mt-3"
-                              onClick={() => handleDownloadQr(t.ticketId)}
-                            >
+                            <Button type="default" icon={<DownloadOutlined />} className="mt-3" onClick={() => handleDownloadQr(t.ticketId)}>
                               Tải QR
                             </Button>
                         </div>
                     ))
                 ) : (
-                    <div className="text-center text-gray-500 py-8">
-                        Dữ liệu vé đang được cập nhật. Vui lòng quay lại sau.
-                    </div>
+                    <div className="text-center text-gray-500 py-8">Dữ liệu vé đang được cập nhật. Vui lòng quay lại sau.</div>
                 )}
             </div>
         </Modal>

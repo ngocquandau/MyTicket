@@ -4,6 +4,9 @@ import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// IMPORT TÍNH NĂNG CRON JOB
+import { startTicketCronJob } from './cron/ticketCron.js';
+
 import userRoutes from './routes/userRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
 import organizerRoutes from './routes/organizerRoutes.js';
@@ -16,8 +19,8 @@ import emailRoutes from './routes/emailRoutes.js';
 import imageRoutes from './routes/imageRoutes.js';
 import chatRoutes from './routes/chatRoutes.js'; 
 import statisticRoutes from './routes/statisticRoutes.js';
-import modelRoutes from './routes/modelRoutes.js';
-
+import modelRoutes from './routes/modelRoutes.js';   
+import reviewRoutes from './routes/reviewRoutes.js'; 
 
 import dotenv from 'dotenv';
 const __filename = fileURLToPath(import.meta.url);
@@ -31,24 +34,23 @@ dns.setServers(["8.8.8.8"]);
 
 const app = express();
 
-// --- MIDDLEWARE (ĐÃ SỬA LẠI CORS VÀ JSON) ---
+// --- MIDDLEWARE ---
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Hỗ trợ nhận diện form-data từ Webhook (nếu có)
+app.use(express.urlencoded({ extended: true })); 
 
-// Cấu hình CORS cực kỳ quan trọng để Vercel gọi được Render
+// Cấu hình CORS
 app.use(cors({
     origin: [
-        'https://mticket.vercel.app', // Tên miền Production trên Vercel của bạn
-        'http://localhost:3000'       // Tên miền Development (Local)
+        'https://mticket.vercel.app', 
+        'http://localhost:3000'       
     ],
-    credentials: true // Bắt buộc phải có dòng này để gửi kèm Token/Cookie khi đăng nhập
+    credentials: true 
 }));
-// --------------------------------------------
 
 const MONGO_URI = process.env.MONGO_URI;
-const PORT = process.env.PORT || 10000; // Render thường dùng port 10000
+const PORT = process.env.PORT || 10000; 
 
-// Routes
+// --- ROUTES ---
 app.use('/api/user',        userRoutes);
 app.use('/api/event',       eventRoutes);
 app.use('/api/organizer',   organizerRoutes);
@@ -61,14 +63,15 @@ app.use('/api/email',       emailRoutes);
 app.use('/api/image',       imageRoutes);
 app.use('/api/chat',        chatRoutes);
 app.use('/api/statistic',   statisticRoutes); 
-app.use('/api/model',       modelRoutes);
+app.use('/api/model',       modelRoutes);   
+app.use('/api/review',      reviewRoutes);  
 
 // Route mặc định kiểm tra server
 app.get('/', (req, res) => {
   res.send('MyTicket API is running...');
 });
 
-// Khởi chạy server sau khi DB sẵn sàng
+// --- KHỞI CHẠY SERVER ---
 const startServer = async () => {
   try {
     if (!MONGO_URI) {
@@ -78,7 +81,11 @@ const startServer = async () => {
     await mongoose.connect(MONGO_URI);
     console.log('MongoDB connected');
 
-    app.listen(PORT, () => {
+    // KÍCH HOẠT CRON JOB NGAY TRƯỚC KHI LẮNG NGHE PORT
+    startTicketCronJob();
+
+    // Lắng nghe trên 0.0.0.0 để tương thích tốt với Render
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (err) {

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Spin, message } from 'antd';
 import ClientLayout from '../../../layouts/ClientLayout';
-import { getPurchaseByIdAPI } from '../../../services/purchaseService';
+import { getPurchaseByIdAPI, cancelPurchaseAPI } from '../../../services/purchaseService';
 
 const PaymentResultPage: React.FC = () => {
   const location = useLocation();
@@ -21,7 +21,7 @@ const PaymentResultPage: React.FC = () => {
         return;
       }
 
-      // Lấy purchaseId thật từ orderId (Do đã cấu hình trong BE nên 2 cái này giống hệt nhau)
+      // Lấy purchaseId thật từ orderId
       const purchaseId = orderId; 
 
       if (resultCode === '0') {
@@ -29,19 +29,21 @@ const PaymentResultPage: React.FC = () => {
         message.success('Thanh toán thành công!');
         navigate('/my-tickets'); // Chuyển sang trang vé của tôi
       } else {
-        // --- TH2: Thất bại ---
-        message.error('Thanh toán thất bại hoặc bị hủy.');
+        // --- TH2: Thất bại hoặc bị người dùng chủ động Hủy ---
+        message.error('Thanh toán thất bại hoặc đã bị hủy. Hệ thống đang hoàn trả vé...');
         try {
-          // Gọi API lấy thông tin đơn hàng để biết Event ID
+          // GỌI API HỦY ĐƠN VÀ NHẢ VÉ TRƯỚC KHI ĐIỀU HƯỚNG
+          await cancelPurchaseAPI(purchaseId);
+
+          // Gọi API lấy thông tin đơn hàng để biết Event ID nhằm trả về đúng trang sự kiện
           const purchase = await getPurchaseByIdAPI(purchaseId);
           if (purchase && purchase.event) {
-            // Chuyển về trang chi tiết sự kiện
             navigate(`/event/${purchase.event}`);
           } else {
             navigate('/');
           }
         } catch (error) {
-          console.error(error);
+          console.error("Lỗi khi gọi API nhả vé:", error);
           navigate('/');
         }
       }
