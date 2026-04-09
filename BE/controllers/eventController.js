@@ -178,3 +178,25 @@ export const getTicketClassesByEvent = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const autoUpdateEventStatus = async (req, res) => {
+  try {
+    const now = new Date();
+
+    const result = await Event.updateMany(
+      {
+        endDateTime: { $lt: now },
+        status: { $nin: ['cancelled', 'completed'] }
+      },
+      {
+        $set: { status: 'completed' }
+      }
+    );
+    
+    res.status(200).json({ message: `Auto-updated ${result.modifiedCount} events` });
+    // console.log(`Auto-updated ${result.modifiedCount} events`);
+  } catch (err) {
+    // console.error('Error updating event statuses:', err.message);
+    res.status(500).json({ error: 'Error updating event statuses' });
+  }
+};
