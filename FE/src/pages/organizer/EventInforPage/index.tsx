@@ -7,6 +7,7 @@ import { Button, Table, Input, message, Image, Tag, Modal, Descriptions, Space, 
 import { EyeOutlined, TeamOutlined, DownloadOutlined } from '@ant-design/icons';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { sanitizeRichText, stripRichText } from '../../../utils/richText';
 
 interface Event {
   _id: string;
@@ -134,6 +135,25 @@ const EventInforPage: React.FC = () => {
   const openView = (record: Event) => { setSelected(record); setViewOpen(true); };
   const closeView = () => { setSelected(null); setViewOpen(false); };
 
+  const getStatusTag = (status?: string) => {
+    const normalized = String(status || '').toLowerCase();
+    const colorMap: Record<string, string> = {
+      published: 'green',
+      draft: 'default',
+      cancelled: 'red',
+      completed: 'orange',
+    };
+
+    const labelMap: Record<string, string> = {
+      published: 'published',
+      draft: 'draft',
+      cancelled: 'cancelled',
+      completed: 'completed',
+    };
+
+    return <Tag color={colorMap[normalized] || 'default'}>{labelMap[normalized] || normalized || 'unknown'}</Tag>;
+  };
+
   const toUpperNoAccent = (value: string) => {
     const normalized = String(value || '')
       .normalize('NFD')
@@ -168,7 +188,7 @@ const EventInforPage: React.FC = () => {
       const scopedResults = organizerEvents.filter((ev) =>
         ev.title.toUpperCase().includes(keywordUpper) ||
         ev.genre?.toUpperCase().includes(keywordUpper) ||
-        ev.description?.toUpperCase().includes(keywordUpper)
+        stripRichText(ev.description).toUpperCase().includes(keywordUpper)
       );
       setEvents(scopedResults);
     } catch (err: any) {
@@ -322,7 +342,7 @@ const EventInforPage: React.FC = () => {
     { title: 'Start', dataIndex: 'startDateTime', key: 'start', render: (d: string) => d ? new Date(d).toLocaleString() : '—', width: 180 },
     { title: 'End', dataIndex: 'endDateTime', key: 'end', render: (d: string) => d ? new Date(d).toLocaleString() : '—', width: 180 },
     { title: 'Location', dataIndex: 'location', key: 'location', render: (loc: any) => loc?.address || (typeof loc === 'string' ? loc : 'N/A') },
-    { title: 'Status', dataIndex: 'status', key: 'status', width: 120, render: (s: string) => <Tag color={s === 'published' ? 'green' : s === 'draft' ? 'default' : 'red'}>{s}</Tag> },
+    { title: 'Status', dataIndex: 'status', key: 'status', width: 120, render: (s: string) => getStatusTag(s) },
     {
       title: 'Action',
       key: 'action',
@@ -389,11 +409,15 @@ const EventInforPage: React.FC = () => {
             <Descriptions bordered column={1} size="small">
               <Descriptions.Item label="Title">{selected.title}</Descriptions.Item>
               <Descriptions.Item label="Genre">{selected.genre || '—'}</Descriptions.Item>
-              <Descriptions.Item label="Description">{selected.description || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Description">
+                {selected.description ? (
+                  <div className="rich-text-content" dangerouslySetInnerHTML={{ __html: sanitizeRichText(selected.description) }} />
+                ) : '—'}
+              </Descriptions.Item>
               <Descriptions.Item label="Poster">{selected.posterURL ? <Image src={selected.posterURL} width={240} alt="poster" /> : '—'}</Descriptions.Item>
               <Descriptions.Item label="Start">{selected.startDateTime ? new Date(selected.startDateTime).toLocaleString() : '—'}</Descriptions.Item>
               <Descriptions.Item label="End">{selected.endDateTime ? new Date(selected.endDateTime).toLocaleString() : '—'}</Descriptions.Item>
-              <Descriptions.Item label="Status">{selected.status ? <Tag color={selected.status === 'published' ? 'green' : selected.status === 'draft' ? 'default' : 'red'}>{selected.status}</Tag> : '—'}</Descriptions.Item>
+              <Descriptions.Item label="Status">{selected.status ? getStatusTag(selected.status) : '—'}</Descriptions.Item>
               <Descriptions.Item label="Location">{selected.location?.address || (typeof selected.location === 'string' ? selected.location : '—')}</Descriptions.Item>
             </Descriptions>
           )}

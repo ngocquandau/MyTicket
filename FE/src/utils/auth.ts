@@ -1,5 +1,14 @@
+export const AUTH_CHANGE_EVENT = 'myticket-auth-change';
+
+const notifyAuthChanged = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+  }
+};
+
 export const saveToken = (token: string) => {
   localStorage.setItem("token", token);
+  notifyAuthChanged();
 };
 
 export const getToken = () => {
@@ -23,6 +32,7 @@ export const isTokenExpired = (token?: string) => {
 export const removeToken = () => {
   localStorage.removeItem("token");
   sessionStorage.removeItem("token");
+  notifyAuthChanged();
 };
 
 // Lấy payload từ JWT (nếu có)

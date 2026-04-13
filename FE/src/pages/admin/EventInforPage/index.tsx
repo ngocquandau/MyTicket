@@ -1,4 +1,6 @@
 import React from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import AdminLayout from '../../../layouts/AdminLayout';
 import {
   Button,
@@ -27,6 +29,7 @@ import {
 } from '../../../services/eventService';
 import { getAllOrganizersAPI } from '../../../services/organizerService';
 import { handleAuthError } from '../../../utils/httpError';
+import { normalizeRichTextContent, sanitizeRichText } from '../../../utils/richText';
 
 const { Search } = Input;
 
@@ -71,6 +74,57 @@ const statusMeta = (status: string) => {
 };
 
 const DEFAULT_COORDINATES: [number, number] = [106.695, 10.772]; // fallback nếu không nhập lat/lng
+
+const descriptionEditorModules = {
+  toolbar: [
+    [{ header: [1, 2, 3, false] }],
+    [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ color: [] }, { background: [] }],
+    [{ align: [] }],
+    [{ list: 'ordered' }, { list: 'bullet' }],
+    [{ indent: '-1' }, { indent: '+1' }],
+    ['blockquote', 'link'],
+    ['clean'],
+  ],
+};
+
+const descriptionEditorFormats = [
+  'header',
+  'font',
+  'size',
+  'bold',
+  'italic',
+  'underline',
+  'strike',
+  'color',
+  'background',
+  'align',
+  'list',
+  'bullet',
+  'indent',
+  'blockquote',
+  'link',
+];
+
+const primaryActionButtonProps = {
+  style: {
+    backgroundColor: '#23A6F0',
+    borderColor: '#23A6F0',
+    color: '#ffffff',
+    fontWeight: 600,
+  },
+  onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.currentTarget as HTMLElement;
+    target.style.backgroundColor = '#1890ff';
+    target.style.borderColor = '#1890ff';
+  },
+  onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.currentTarget as HTMLElement;
+    target.style.backgroundColor = '#23A6F0';
+    target.style.borderColor = '#23A6F0';
+  },
+};
 
 const EventInforPage: React.FC = () => {
   const navigate = useNavigate();
@@ -203,7 +257,7 @@ const toValidEnum = (val: any, allowed: readonly string[]) => {
   setIsModalOpen(true);
   requestAnimationFrame(() => {
     form.resetFields();
-    form.setFieldsValue({ status: 'draft' }); // khớp BE default
+    form.setFieldsValue({ status: 'draft', description: '' }); // khớp BE default
   });
 };
 
@@ -217,7 +271,7 @@ const handleEdit = async (record: any) => {
     form.setFieldsValue({
       title: e.title,
       genre: toValidEnum(e.genre, EVENT_GENRES),
-      description: e.description,
+      description: normalizeRichTextContent(e.description),
       posterURL: e.posterURL,
       startDateTime: e.startDateTime ? moment(e.startDateTime) : null,
       endDateTime: e.endDateTime ? moment(e.endDateTime) : null,
@@ -365,7 +419,11 @@ const columns = React.useMemo(
         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
           <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => openView(record)} />
           <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          <Popconfirm title="Xóa sự kiện này?" onConfirm={() => handleDelete(record._id)}>
+          <Popconfirm
+            title="Xóa sự kiện này?"
+            onConfirm={() => handleDelete(record._id)}
+            okButtonProps={primaryActionButtonProps}
+          >
             <Button danger type="text" size="small" icon={<DeleteOutlined />} />
           </Popconfirm>
         </div>
@@ -465,7 +523,11 @@ return (
       {selected && (
         <Descriptions bordered column={1} size="small">
           <Descriptions.Item label="Title">{selected.title || '—'}</Descriptions.Item>
-          <Descriptions.Item label="Description">{selected.description || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Description">
+            {selected.description ? (
+              <div className="rich-text-content" dangerouslySetInnerHTML={{ __html: sanitizeRichText(selected.description) }} />
+            ) : '—'}
+          </Descriptions.Item>
           <Descriptions.Item label="Poster">
             {selected.posterURL ? <Image src={selected.posterURL} width={240} alt="poster" /> : '—'}
           </Descriptions.Item>
@@ -497,6 +559,7 @@ return (
       onCancel={handleModalCancel}
       onOk={handleModalSubmit}
       confirmLoading={submitting}
+      okButtonProps={primaryActionButtonProps}
       width={800}
       centered
       styles={{ body: { maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' } }}
@@ -515,7 +578,12 @@ return (
         </Form.Item>
 
         <Form.Item name="description" label="Mô tả">
-          <Input.TextArea rows={4} />
+          <ReactQuill
+            className="event-description-editor"
+            theme="snow"
+            modules={descriptionEditorModules}
+            formats={descriptionEditorFormats}
+          />
         </Form.Item>
 
         <div style={{ display: 'flex', gap: 12 }}>

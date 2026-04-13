@@ -1,5 +1,5 @@
-import React from 'react';
-import { loginAPI } from "../../services/authService";
+import React, { useState } from 'react';
+import { forgotPasswordAPI, loginAPI } from "../../services/authService";
 import { saveToken, getUserRole, getUserFromToken } from "../../utils/auth";
 import { getAllOrganizersAPI } from "../../services/organizerService";
 import { message } from "antd";
@@ -12,11 +12,18 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onRegisterClick: () => void;
-  onLoginSuccess?: () => void; // ✅ Thêm dòng này (dấu ? để là optional)
+  onLoginSuccess?: (options?: { skipPendingRedirect?: boolean }) => void; // ✅ Thêm dòng này (dấu ? để là optional)
 }
+
+const FORGOT_PASSWORD_EMAIL_KEY = 'forgot_password_email_forced_profile';
+
+const normalizeEmail = (email?: string) => (email || '').trim().toLowerCase();
 
 const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick, onLoginSuccess }) => {
   const [form] = Form.useForm();
+  const [forgotForm] = Form.useForm();
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const navigate = useNavigate();
 
   const onFinish = async (values: any) => {
@@ -44,7 +51,23 @@ const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick, onLoginSu
             console.warn('Không thể lấy organizerId:', e);
           }
         }
-      if (role === 'admin') {
+      const forgotPasswordEmail = sessionStorage.getItem(FORGOT_PASSWORD_EMAIL_KEY);
+      const shouldForceProfile =
+        (role === 'user' || role === 'organizer' || role === 'admin') &&
+        !!forgotPasswordEmail &&
+        forgotPasswordEmail === normalizeEmail(values?.email);
+
+      if (shouldForceProfile) {
+        sessionStorage.removeItem(FORGOT_PASSWORD_EMAIL_KEY);
+        navigate(
+          role === 'organizer'
+            ? '/organizer/profile'
+            : role === 'admin'
+              ? '/admin/settings'
+              : '/profile'
+        );
+        message.info('Vui lòng đổi mật khẩu mới ngay sau khi đăng nhập.');
+      } else if (role === 'admin') {
         navigate('/admin/events');
       } else if (role === 'organizer') {
         navigate('/organizer/events');
@@ -52,14 +75,30 @@ const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick, onLoginSu
         // user hoặc không có role, chuyển về home
         navigate('/');
       }
-      
+
       if (onLoginSuccess) {
-        onLoginSuccess(); // ✅ Gọi callback nếu có
+        onLoginSuccess({ skipPendingRedirect: shouldForceProfile }); // ✅ Gọi callback nếu có
       }
       
       onClose();
     } catch (err: any) {
       message.error(err.response?.data?.error || "Lỗi đăng nhập");
+    }
+  };
+
+  const handleForgotPassword = async (values: { email: string }) => {
+    try {
+      setForgotLoading(true);
+      const res = await forgotPasswordAPI(values);
+      sessionStorage.setItem(FORGOT_PASSWORD_EMAIL_KEY, normalizeEmail(values.email));
+      message.success(res?.data?.message || "Mật khẩu mới đã được gửi tới email của bạn");
+      form.setFieldValue('email', values.email);
+      forgotForm.resetFields();
+      setForgotOpen(false);
+    } catch (err: any) {
+      message.error(err.response?.data?.message || "Không thể gửi mật khẩu mới");
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -112,6 +151,16 @@ const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick, onLoginSu
               />
             </Form.Item>
 
+            <div className="text-right -mt-2 mb-4">
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="text-[#23A6F0] text-sm font-medium hover:underline"
+              >
+                Quên mật khẩu?
+              </button>
+            </div>
+
             <Form.Item className="mb-4">
               <button
                 type="submit"
@@ -135,6 +184,43 @@ const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick, onLoginSu
               </button>
             </div>
           </Form>
+
+          <Modal
+            open={forgotOpen}
+            onCancel={() => {
+              setForgotOpen(false);
+              forgotForm.resetFields();
+            }}
+            onOk={() => forgotForm.submit()}
+            okText="Gửi mật khẩu mới"
+            okButtonProps={{
+              className: "!bg-[#23A6F0] !border-[#23A6F0] !text-white !font-semibold hover:!bg-[#1890ff] hover:!border-[#1890ff]"
+            }}
+            cancelText="Huỷ"
+            confirmLoading={forgotLoading}
+            title="Quên mật khẩu"
+            centered
+          >
+            <p className="text-gray-600 mb-4">
+              Nhập email đã đăng ký. Nếu email tồn tại, hệ thống sẽ gửi mật khẩu ngẫu nhiên mới.
+            </p>
+            <Form
+              form={forgotForm}
+              layout="vertical"
+              onFinish={handleForgotPassword}
+            >
+              <Form.Item
+                name="email"
+                label="Email"
+                rules={[
+                  { required: true, message: 'Vui lòng nhập email' },
+                  { type: 'email', message: 'Email không hợp lệ' }
+                ]}
+              >
+                <Input placeholder="Nhập email của bạn" />
+              </Form.Item>
+            </Form>
+          </Modal>
         </div>
       </div>
     </Modal>

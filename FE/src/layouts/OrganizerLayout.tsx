@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { message } from 'antd';
 import { logoutAPI } from '../services/authService';
+import { removeToken } from '../utils/auth';
 import {
   MailOutlined,
   InstagramFilled,
@@ -26,9 +27,9 @@ const OrganizerLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
     } catch (error) {
       console.error('Logout API failed:', error);
     } finally {
-      localStorage.removeItem('token');
+      removeToken();
       message.success('Đăng xuất thành công');
-      navigate('/');
+      navigate('/', { replace: true });
     }
   };
 

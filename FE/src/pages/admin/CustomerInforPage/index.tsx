@@ -15,6 +15,25 @@ import {
 
 const { Search } = Input;
 
+const primaryActionButtonProps = {
+  style: {
+    backgroundColor: '#23A6F0',
+    borderColor: '#23A6F0',
+    color: '#ffffff',
+    fontWeight: 600,
+  },
+  onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.currentTarget as HTMLElement;
+    target.style.backgroundColor = '#1890ff';
+    target.style.borderColor = '#1890ff';
+  },
+  onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.currentTarget as HTMLElement;
+    target.style.backgroundColor = '#23A6F0';
+    target.style.borderColor = '#23A6F0';
+  },
+};
+
 type UserFormValues = {
   firstName: string;
   lastName: string;
@@ -30,6 +49,8 @@ const CustomerInforPage: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const [users, setUsers] = React.useState<UserProfile[]>([]);
   const [query, setQuery] = React.useState('');
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(10);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<UserProfile | null>(null);
   const [isViewOpen, setIsViewOpen] = React.useState(false);
@@ -143,6 +164,10 @@ const CustomerInforPage: React.FC = () => {
     );
   });
 
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [query, pageSize]);
+
   const formatDateTime = (value?: string) => {
     if (!value) return '—';
     const date = new Date(value);
@@ -239,6 +264,7 @@ const CustomerInforPage: React.FC = () => {
             onConfirm={() => handleDelete(record._id)}
             okText="Xóa"
             cancelText="Hủy"
+            okButtonProps={primaryActionButtonProps}
           >
             <Button type="text" danger icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -269,7 +295,23 @@ const CustomerInforPage: React.FC = () => {
           dataSource={filteredUsers}
           columns={columns}
           loading={loading}
-          pagination={{ pageSize: 10 }}
+          pagination={{
+            current: currentPage,
+            pageSize,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              if (size !== pageSize) {
+                setPageSize(size);
+              }
+            },
+            onShowSizeChange: (_, size) => {
+              setCurrentPage(1);
+              setPageSize(size);
+            },
+            showTotal: (total, range) => `${range[0]}-${range[1]} / ${total}`,
+          }}
           tableLayout="fixed"
           scroll={{ x: 980, y: 500 }}
           sticky
@@ -307,6 +349,7 @@ const CustomerInforPage: React.FC = () => {
         onCancel={closeModal}
         onOk={handleSubmit}
         confirmLoading={submitting}
+        okButtonProps={primaryActionButtonProps}
         centered
         width={720}
         bodyStyle={{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}

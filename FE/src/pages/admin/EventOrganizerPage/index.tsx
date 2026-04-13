@@ -1,12 +1,31 @@
 import React from 'react';
 import AdminLayout from '../../../layouts/AdminLayout';
-import { Button, Table, Input, Space, Popconfirm, message, Modal, Form } from 'antd';
+import { Button, Table, Input, Space, Popconfirm, message, Modal, Form, Descriptions } from 'antd';
 import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getAllOrganizersAPI, deleteOrganizerAPI, createOrganizerAPI, updateOrganizerAPI } from '../../../services/organizerService';
 import { useNavigate } from 'react-router-dom';
 import { handleAuthError } from '../../../utils/httpError';
 
 const { Search } = Input;
+
+const primaryActionButtonProps = {
+	style: {
+		backgroundColor: '#23A6F0',
+		borderColor: '#23A6F0',
+		color: '#ffffff',
+		fontWeight: 600,
+	},
+	onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
+		const target = e.currentTarget as HTMLElement;
+		target.style.backgroundColor = '#1890ff';
+		target.style.borderColor = '#1890ff';
+	},
+	onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
+		const target = e.currentTarget as HTMLElement;
+		target.style.backgroundColor = '#23A6F0';
+		target.style.borderColor = '#23A6F0';
+	},
+};
 
 const EventOrganizerPage: React.FC = () => {
 	const [loading, setLoading] = React.useState(false);
@@ -16,6 +35,8 @@ const EventOrganizerPage: React.FC = () => {
 
 	const [isModalOpen, setIsModalOpen] = React.useState(false);
 	const [editing, setEditing] = React.useState<any | null>(null);
+	const [isViewOpen, setIsViewOpen] = React.useState(false);
+	const [viewingOrganizer, setViewingOrganizer] = React.useState<any | null>(null);
 	const [submitting, setSubmitting] = React.useState(false);
 	const [form] = Form.useForm();
 
@@ -54,6 +75,16 @@ const EventOrganizerPage: React.FC = () => {
 			user: record.user || ''
 		});
 		setIsModalOpen(true);
+	};
+
+	const openView = (record: any) => {
+		setViewingOrganizer(record);
+		setIsViewOpen(true);
+	};
+
+	const closeView = () => {
+		setIsViewOpen(false);
+		setViewingOrganizer(null);
 	};
 
 	const handleModalCancel = () => {
@@ -104,9 +135,9 @@ const EventOrganizerPage: React.FC = () => {
 		{
 			title: 'Action', key: 'action', width: 140, render: (_: any, record: any) => (
 				<Space>
-					<Button type="text" icon={<EyeOutlined />} />
+					<Button type="text" icon={<EyeOutlined />} onClick={() => openView(record)} />
 					<Button type="text" icon={<EditOutlined />} onClick={() => openEdit(record)} />
-					<Popconfirm title="Bạn có chắc muốn xóa?" onConfirm={() => handleDelete(record._id)}>
+					<Popconfirm title="Bạn có chắc muốn xóa?" onConfirm={() => handleDelete(record._id)} okButtonProps={primaryActionButtonProps}>
 						<Button danger type="text" icon={<DeleteOutlined />} />
 					</Popconfirm>
 				</Space>
@@ -123,6 +154,12 @@ const EventOrganizerPage: React.FC = () => {
 			String(d.taxCode || '').toLowerCase().includes(q)
 		);
 	});
+
+	const getOrganizerRepresentative = (organizer: any) => {
+		if (!organizer?.user) return '—';
+		if (typeof organizer.user === 'string') return organizer.user;
+		return organizer.user.email || organizer.user._id || organizer.user.id || '—';
+	};
 
 	return (
 		<AdminLayout>
@@ -172,6 +209,31 @@ const EventOrganizerPage: React.FC = () => {
 				/>
 			</div>
 
+			<Modal
+				title="CHI TIẾT BAN TỔ CHỨC"
+				open={isViewOpen}
+				onCancel={closeView}
+				footer={null}
+				centered
+				width={760}
+			>
+				<Descriptions bordered size="middle" column={1}>
+					<Descriptions.Item label="Tên tổ chức">{viewingOrganizer?.name || '—'}</Descriptions.Item>
+					<Descriptions.Item label="Email">{viewingOrganizer?.email || '—'}</Descriptions.Item>
+					<Descriptions.Item label="Số điện thoại">{viewingOrganizer?.phoneNumber || '—'}</Descriptions.Item>
+					<Descriptions.Item label="Địa chỉ">{viewingOrganizer?.address || '—'}</Descriptions.Item>
+					<Descriptions.Item label="Mã số thuế">{viewingOrganizer?.taxCode || '—'}</Descriptions.Item>
+					<Descriptions.Item label="User đại diện">{getOrganizerRepresentative(viewingOrganizer)}</Descriptions.Item>
+					<Descriptions.Item label="Mã ban tổ chức">{viewingOrganizer?._id || '—'}</Descriptions.Item>
+					<Descriptions.Item label="Ngày tạo">
+						{viewingOrganizer?.createdAt ? new Date(viewingOrganizer.createdAt).toLocaleString('vi-VN') : '—'}
+					</Descriptions.Item>
+					<Descriptions.Item label="Cập nhật cuối">
+						{viewingOrganizer?.updatedAt ? new Date(viewingOrganizer.updatedAt).toLocaleString('vi-VN') : '—'}
+					</Descriptions.Item>
+				</Descriptions>
+			</Modal>
+
 			{/* Modal: Create / Edit Organizer */}
 			<Modal
 				title={editing ? 'CHỈNH SỬA THÔNG TIN BAN TỔ CHỨC' : 'THÊM MỚI BAN TỔ CHỨC'}
@@ -179,6 +241,7 @@ const EventOrganizerPage: React.FC = () => {
 				onCancel={handleModalCancel}
 				onOk={handleModalSubmit}
 				confirmLoading={submitting}
+				okButtonProps={primaryActionButtonProps}
 				centered
 				width={720}
 				// ensure modal body scrolls while footer (OK) stays visible

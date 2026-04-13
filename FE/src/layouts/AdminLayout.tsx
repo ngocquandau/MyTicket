@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { message } from 'antd';
-import { getUserFromToken } from '../utils/auth';
+import { getUserFromToken, removeToken } from '../utils/auth';
 import { logoutAPI } from '../services/authService';
 import {
   MailOutlined,
@@ -15,8 +15,8 @@ import {
   IdcardOutlined,
   HomeOutlined,
   TeamOutlined,
-  MessageOutlined,
   BarChartOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -37,19 +37,19 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     } catch (error) {
       console.error('Logout API failed:', error);
     } finally {
-      localStorage.removeItem('token');
+      removeToken();
       message.success('Đăng xuất thành công');
-      navigate('/');
+      navigate('/', { replace: true });
     }
   };
 
-  const menuItems = [
+  const menuItems: Array<{ label: string; icon: React.ReactNode; path: string; badge?: string }> = [
     { label: 'Statistical Data', icon: <BarChartOutlined />, path: '/admin/statistics' },
     { label: 'Event Information', icon: <LayoutOutlined />, path: '/admin/events' },
     { label: 'Ticket Information', icon: <IdcardOutlined />, path: '/admin/tickets' },
     { label: 'Customer Information', icon: <TeamOutlined />, path: '/admin/customers' },
     { label: 'Event Organizers', icon: <HomeOutlined />, path: '/admin/organizer' },
-    { label: 'Messages', icon: <MessageOutlined />, path: '/admin/messages', badge: '2' },
+    { label: 'Setting', icon: <SettingOutlined />, path: '/admin/settings' },
   ];
 
   return (

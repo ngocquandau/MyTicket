@@ -17,6 +17,7 @@ import RegisterModal from '../components/auth/RegisterModal';
 import LoginModal from '../components/auth/LoginModal';       
 import logo from '../assets/myticket_logo.png';
 import { logoutAPI } from '../services/authService';
+import { AUTH_CHANGE_EVENT, removeToken } from '../utils/auth';
 
 // IMPORT COMPONENT CHATBOT MỚI TẠO Ở ĐÂY
 import AIChatBot from '../components/chat/AIChatBot';
@@ -33,8 +34,19 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    setIsLoggedIn(!!token); 
+    const syncLoginState = () => {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      setIsLoggedIn(!!token);
+    };
+
+    syncLoginState();
+    window.addEventListener(AUTH_CHANGE_EVENT, syncLoginState);
+    window.addEventListener('storage', syncLoginState);
+
+    return () => {
+      window.removeEventListener(AUTH_CHANGE_EVENT, syncLoginState);
+      window.removeEventListener('storage', syncLoginState);
+    };
   }, []); 
 
   const handleLogout = async () => {
@@ -43,10 +55,10 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     } catch (error) {
       console.error('Logout API failed:', error);
     } finally {
-      localStorage.removeItem('token');
+      removeToken();
       setIsLoggedIn(false);
       message.success('Đăng xuất thành công');
-      navigate('/');
+      navigate('/', { replace: true });
     }
   };
 
@@ -65,9 +77,13 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
   };
 
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = (options?: { skipPendingRedirect?: boolean }) => {
     setIsLoginOpen(false);
     setIsLoggedIn(true);
+    if (options?.skipPendingRedirect) {
+      setPendingRedirect(null);
+      return;
+    }
     if (pendingRedirect) {
       navigate(pendingRedirect.path, { state: pendingRedirect.state });
       setPendingRedirect(null);

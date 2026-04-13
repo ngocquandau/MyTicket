@@ -8,6 +8,9 @@ import { getUserRole } from '../../../utils/auth';
 
 const { Title } = Typography;
 
+const isUserVisibleEvent = (event: any) => ['published', 'completed'].includes(event?.status);
+const isCompletedEvent = (event: any) => event?.status === 'completed';
+
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const role = getUserRole();
@@ -21,7 +24,7 @@ const HomePage: React.FC = () => {
 
     const loadHomeData = async () => {
       try {
-        const allEvents = await getAllEventsAPI();
+        const allEvents = (await getAllEventsAPI()).filter(isUserVisibleEvent);
         if (cancelled) {
           return;
         }
@@ -124,6 +127,11 @@ const HomePage: React.FC = () => {
                   alt={ev.title}
                   className="block w-full h-full object-cover"
                 />
+                {isCompletedEvent(ev) ? (
+                  <div className="absolute left-3 top-3 rounded-full bg-[#f97316] px-3 py-1 text-xs font-bold uppercase tracking-wide text-white shadow-lg">
+                    Đã diễn ra
+                  </div>
+                ) : null}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#040a14]/90 via-[#040a14]/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4">
                   <h3 className="text-sm md:text-base font-semibold text-white line-clamp-1">{ev.title}</h3>
@@ -182,11 +190,16 @@ const HomePage: React.FC = () => {
                 {recommendedEvents.slice(0, 6).map(ev => (
                   <div
                     key={ev._id}
-                    className="h-full rounded-2xl overflow-hidden border border-[#2a446f] bg-[#0b1422] shadow-[0_10px_30px_rgba(5,12,23,0.45)] hover:border-[#4579bf] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
+                    className="relative h-full rounded-2xl overflow-hidden border border-[#2a446f] bg-[#0b1422] shadow-[0_10px_30px_rgba(5,12,23,0.45)] hover:border-[#4579bf] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
                     onClick={() => navigate(`/event/${ev._id}`, { state: { event: ev } })}
                   >
                     <div className="h-52 md:h-56 overflow-hidden bg-[#101a2b] flex items-center justify-center">
                       <img src={ev.posterURL} alt={ev.title} className="block w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                      {isCompletedEvent(ev) ? (
+                        <div className="absolute left-3 top-3 rounded-full bg-[#f97316] px-3 py-1 text-xs font-bold uppercase tracking-wide text-white shadow-lg">
+                          Đã diễn ra
+                        </div>
+                      ) : null}
                     </div>
                     <div className="p-4 md:p-5 flex flex-col flex-1">
                       <h3 className="font-semibold text-lg md:text-xl leading-6 min-h-[48px] mb-2 line-clamp-2 text-white">{ev.title}</h3>
@@ -235,11 +248,16 @@ const HomePage: React.FC = () => {
             {events.slice(0, 6).map(ev => (
               <div
                 key={ev._id}
-                className="h-full rounded-2xl overflow-hidden border border-[#2a446f] bg-[#0b1422] shadow-[0_10px_30px_rgba(5,12,23,0.45)] hover:border-[#4579bf] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
+                className="relative h-full rounded-2xl overflow-hidden border border-[#2a446f] bg-[#0b1422] shadow-[0_10px_30px_rgba(5,12,23,0.45)] hover:border-[#4579bf] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
                 onClick={() => navigate(`/event/${ev._id}`, { state: { event: ev } })}
               >
                 <div className="h-52 md:h-56 overflow-hidden bg-[#101a2b] flex items-center justify-center">
                   <img src={ev.posterURL} alt={ev.title} className="block w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                  {isCompletedEvent(ev) ? (
+                    <div className="absolute left-3 top-3 rounded-full bg-[#f97316] px-3 py-1 text-xs font-bold uppercase tracking-wide text-white shadow-lg">
+                      Đã diễn ra
+                    </div>
+                  ) : null}
                 </div>
                 <div className="p-4 md:p-5 flex flex-col flex-1">
                   <h3 className="font-semibold text-lg md:text-xl leading-6 min-h-[48px] mb-2 line-clamp-2 text-white">{ev.title}</h3>

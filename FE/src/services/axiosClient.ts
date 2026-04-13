@@ -1,5 +1,9 @@
 import axios from "axios";
-import { removeToken } from "../utils/auth";
+import { getToken, removeToken } from "../utils/auth";
+
+declare const process: {
+  env: Record<string, string | undefined>;
+};
 
 // Loại bỏ globalThis để Webpack (trên Vercel) nhận diện được biến môi trường.
 // Có sẵn fallback dự phòng link Render để đảm bảo 100% không bị sập kết nối.
@@ -14,7 +18,7 @@ const axiosClient = axios.create({
 
 // QUAN TRỌNG: Interceptor này giúp tự động gắn Token vào mọi request
 axiosClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Form, Input, Button, Select, DatePicker, Typography, Spin, message, Upload, Avatar } from 'antd';
+import { Card, Form, Input, Button, Select, DatePicker, Typography, Spin, message, Upload, Avatar, Divider } from 'antd';
 import type { RcFile, UploadProps } from 'antd/es/upload';
 import dayjs, { Dayjs } from 'dayjs';
 import { UserOutlined } from '@ant-design/icons';
@@ -24,8 +24,11 @@ const ProfilePage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
+  const [changingPassword, setChangingPassword] = React.useState(false);
+  const [showChangePassword, setShowChangePassword] = React.useState(false);
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [form] = Form.useForm<ProfileFormValues>();
+  const [passwordForm] = Form.useForm();
   const navigate = useNavigate();
 
   const fillForm = (user: UserProfile) => {
@@ -141,6 +144,23 @@ const ProfilePage: React.FC = () => {
     return Upload.LIST_IGNORE;
   };
 
+  const handleChangePassword = async (values: { password: string; confirmPassword: string }) => {
+    try {
+      setChangingPassword(true);
+      await axiosClient.put('/api/user/profile', { password: values.password.trim() });
+      message.success('Đổi mật khẩu thành công');
+      passwordForm.resetFields();
+      setShowChangePassword(false);
+    } catch (error: any) {
+      if (handleAuthError(error, navigate, { notify: message.warning })) {
+        return;
+      }
+      message.error(error?.response?.data?.error || 'Không thể đổi mật khẩu');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <ClientLayout>
       <div className="min-h-screen py-8 px-4 bg-[#1d3f73]">
@@ -216,7 +236,7 @@ const ProfilePage: React.FC = () => {
                       size={80}
                       icon={<UserOutlined />}
                     />
-                    <div>
+                    <div className="flex-1">
                       <Upload
                         accept="image/*"
                         showUploadList={false}
@@ -226,23 +246,102 @@ const ProfilePage: React.FC = () => {
                         <Button loading={uploadingAvatar}>Thay đổi hình đại diện</Button>
                       </Upload>
 
+                      <div className="flex items-center justify-end gap-3 mt-3">
+                        <Button onClick={() => profile && fillForm(profile)} disabled={saving}>
+                          Đặt lại
+                        </Button>
+                        <Button type="primary" htmlType="submit" loading={saving} className="!bg-[#23A6F0]">
+                          Lưu thay đổi
+                        </Button>
+                      </div>
+
                       <Form.Item name="profileImage" noStyle>
                         <Input type="hidden" />
                       </Form.Item>
                     </div>
                   </div>
                 </Form.Item>
-
-                <div className="flex items-center justify-end gap-3 mt-2">
-                  <Button onClick={() => profile && fillForm(profile)} disabled={saving}>
-                    Đặt lại
-                  </Button>
-                  <Button type="primary" htmlType="submit" loading={saving} className="!bg-[#23A6F0]">
-                    Lưu thay đổi
-                  </Button>
-                </div>
               </Form>
             )}
+
+            <Divider />
+
+            <div className="mt-2 rounded-xl border border-[#dbe7f3] bg-[#f6fbff] p-4 md:p-5">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <Title level={5} className="!mb-1">Bảo mật tài khoản</Title>
+                  <Text type="secondary">Bạn nên đổi mật khẩu định kỳ để bảo vệ tài khoản.</Text>
+                </div>
+                {!showChangePassword ? (
+                  <Button
+                    type="primary"
+                    className="!bg-[#23A6F0] hover:!bg-[#1890ff] !border-[#23A6F0] hover:!border-[#1890ff] !font-semibold !rounded-lg !h-10 !px-5"
+                    onClick={() => setShowChangePassword(true)}
+                  >
+                    Đổi mật khẩu
+                  </Button>
+                ) : null}
+              </div>
+
+              {showChangePassword ? (
+                <Form
+                  form={passwordForm}
+                  layout="vertical"
+                  onFinish={handleChangePassword}
+                  className="max-w-[460px] mt-5"
+                >
+                  <Form.Item
+                    name="password"
+                    label="Mật khẩu mới"
+                    rules={[
+                      { required: true, message: 'Vui lòng nhập mật khẩu mới' },
+                      { min: 6, message: 'Mật khẩu tối thiểu 6 ký tự' }
+                    ]}
+                  >
+                    <Input.Password placeholder="Nhập mật khẩu mới" className="!rounded-lg" />
+                  </Form.Item>
+
+                  <Form.Item
+                    name="confirmPassword"
+                    label="Xác nhận mật khẩu mới"
+                    dependencies={['password']}
+                    rules={[
+                      { required: true, message: 'Vui lòng xác nhận mật khẩu mới' },
+                      ({ getFieldValue }) => ({
+                        validator(_, value) {
+                          if (!value || getFieldValue('password') === value) {
+                            return Promise.resolve();
+                          }
+                          return Promise.reject(new Error('Mật khẩu xác nhận không khớp'));
+                        },
+                      }),
+                    ]}
+                  >
+                    <Input.Password placeholder="Nhập lại mật khẩu mới" className="!rounded-lg" />
+                  </Form.Item>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      loading={changingPassword}
+                      className="!bg-[#23A6F0] hover:!bg-[#1890ff] !border-[#23A6F0] hover:!border-[#1890ff] !font-semibold !rounded-lg !h-10 !px-5"
+                    >
+                      Cập nhật mật khẩu
+                    </Button>
+                    <Button
+                      className="!rounded-lg !h-10 !px-4"
+                      onClick={() => {
+                        setShowChangePassword(false);
+                        passwordForm.resetFields();
+                      }}
+                    >
+                      Hủy
+                    </Button>
+                  </div>
+                </Form>
+              ) : null}
+            </div>
           </Card>
         </div>
       </div>

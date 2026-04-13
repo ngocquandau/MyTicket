@@ -18,16 +18,32 @@ import EventOrganizerPage from './pages/admin/EventOrganizerPage';
 import EventInforPage from './pages/admin/EventInforPage';
 import TicketInforPage from './pages/admin/TicketInforPage';
 import CustomerInforPage from './pages/admin/CustomerInforPage';
-import MessagesPage from './pages/admin/MessagesPage';
+import SettingPage from './pages/admin/SettingPage';
 import StatisticsPage from './pages/admin/StatisticsPage';
 import StatisPage from './pages/organizer/StatisPage';
 import OrganizerEventInforPage from './pages/organizer/EventInforPage';
 import OrganizerMessagesPage from './pages/organizer/MessagesPage';
 import OrganizerSettingPage from './pages/organizer/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
-import { getUserRole } from './utils/auth';
+import { AUTH_CHANGE_EVENT, getUserRole } from './utils/auth';
 
 const App: React.FC = () => {
+  const [, setAuthVersion] = React.useState(0);
+
+  React.useEffect(() => {
+    const handleAuthChanged = () => {
+      setAuthVersion((current) => current + 1);
+    };
+
+    window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChanged);
+    window.addEventListener('storage', handleAuthChanged);
+
+    return () => {
+      window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChanged);
+      window.removeEventListener('storage', handleAuthChanged);
+    };
+  }, []);
+
   const role = getUserRole();
   const roleHome = role === 'admin'
     ? '/admin/events'
@@ -59,7 +75,8 @@ const App: React.FC = () => {
         <Route path="/admin/tickets" element={<ProtectedRoute allowedRoles={['admin']}><TicketInforPage /></ProtectedRoute>} />
         <Route path="/admin/customers" element={<ProtectedRoute allowedRoles={['admin']}><CustomerInforPage /></ProtectedRoute>} />
         <Route path="/admin/organizer" element={<ProtectedRoute allowedRoles={['admin']}><EventOrganizerPage /></ProtectedRoute>} />
-        <Route path="/admin/messages" element={<ProtectedRoute allowedRoles={['admin']}><MessagesPage /></ProtectedRoute>} />
+        <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><SettingPage /></ProtectedRoute>} />
+        <Route path="/admin/messages" element={<ProtectedRoute allowedRoles={['admin']}><Navigate to="/admin/settings" replace /></ProtectedRoute>} />
         <Route path="/admin/statistics" element={<ProtectedRoute allowedRoles={['admin']}><StatisticsPage /></ProtectedRoute>} />
 
         {/* Organizer Routes - chỉ organizer mới truy cập */}

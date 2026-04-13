@@ -20,8 +20,12 @@ import axiosClient from "../../../services/axiosClient";
 // Đảm bảo đường dẫn import đúng case (viết hoa/thường)
 import LoginModal from "../../../components/auth/LoginModal";
 import RegisterModal from "../../../components/auth/RegisterModal";
+import { sanitizeRichText } from '../../../utils/richText';
 
 const { Title, Text } = Typography;
+
+const isUserVisibleEvent = (event: any) => ['published', 'completed'].includes(event?.status);
+const isCompletedEvent = (event: any) => event?.status === 'completed';
 
 // Định nghĩa kiểu dữ liệu hiển thị vé
 type TicketDisplay = {
@@ -60,10 +64,17 @@ const EventDetail: React.FC = () => {
   React.useEffect(() => {
     if (id) {
       getEventByIdAPI(id)
-        .then(setEvent)
+        .then((data) => {
+          if (!isUserVisibleEvent(data)) {
+            message.warning('Sự kiện này hiện không khả dụng.');
+            navigate('/', { replace: true });
+            return;
+          }
+          setEvent(data);
+        })
         .catch(() => message.error("Không thể tải chi tiết sự kiện"));
     }
-  }, [id]);
+  }, [id, navigate]);
 
   // Lấy thông tin organizer (nếu event.organizer là id -> fetch, nếu đã populated -> dùng luôn)
   React.useEffect(() => {
@@ -195,6 +206,7 @@ const EventDetail: React.FC = () => {
   );
   const dateDisplay = formatEventDate(event.startDateTime);
   const address = event.location?.address || "Đang cập nhật";
+  const eventCompleted = isCompletedEvent(event);
 
   return (
     <ClientLayout>
@@ -202,7 +214,12 @@ const EventDetail: React.FC = () => {
         {/* Phần 1: Poster & Info */}
         <div className="grid grid-cols-12 gap-8 mb-8">
           <div className="col-span-7 ">
-            <div className="w-full h-[500px] rounded-lg overflow-hidden bg-[#173564] flex items-center justify-center shadow-lg shadow-slate-400">
+            <div className="relative w-full h-[500px] rounded-lg overflow-hidden bg-[#173564] flex items-center justify-center shadow-lg shadow-slate-400">
+              {eventCompleted ? (
+                <div className="absolute left-4 top-4 z-10 rounded-full bg-[#f97316] px-4 py-2 text-sm font-bold uppercase tracking-wide text-white shadow-lg">
+                  Đã diễn ra
+                </div>
+              ) : null}
               <img
                 src={event.posterURL}
                 alt={event.title}
@@ -215,6 +232,11 @@ const EventDetail: React.FC = () => {
               {event.title}
             </Title>
             <div className="space-y-3 text-white">
+              {eventCompleted ? (
+                <div className="rounded-lg border border-[#fdba74] bg-[#7c2d12] px-4 py-3 text-sm font-semibold text-[#ffedd5]">
+                  Sự kiện này đã diễn ra. Bạn vẫn có thể xem lại thông tin nhưng không thể mua vé mới.
+                </div>
+              ) : null}
               <div className="flex items-center gap-2">
                 <CalendarOutlined />
                 <Text className="text-white">
@@ -240,7 +262,8 @@ const EventDetail: React.FC = () => {
             <Button
               type="primary"
               size="large"
-              className="!bg-[#23A6F0] mt-2 w-full h-12 text-lg font-semibold shadow-md hover:!bg-[#1890ff]"
+              disabled={eventCompleted}
+              className="!bg-[#23A6F0] mt-2 w-full h-12 text-lg font-semibold shadow-md hover:!bg-[#1890ff] disabled:!bg-gray-400 disabled:!text-white"
               onClick={() =>
                 priceSectionRef.current?.scrollIntoView({
                   behavior: "smooth",
@@ -248,7 +271,7 @@ const EventDetail: React.FC = () => {
                 })
               }
             >
-              CHỌN VÉ NGAY
+              {eventCompleted ? 'SỰ KIỆN ĐÃ DIỄN RA' : 'CHỌN VÉ NGAY'}
             </Button>
           </div>
         </div>
@@ -279,7 +302,7 @@ const EventDetail: React.FC = () => {
           </div>
           {introOpen && (
             <div className="rounded-lg p-6 bg-white shadow-sm border border-gray-100 text-gray-700 leading-relaxed">
-              <p>{event.description}</p>
+              <div className="rich-text-content" dangerouslySetInnerHTML={{ __html: sanitizeRichText(event.description) }} />
             </div>
           )}
         </section>
@@ -396,7 +419,7 @@ const EventDetail: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-4 px-6 text-right">
-                          {t.status === "available" ? (
+                          {t.status === "available" && !eventCompleted ? (
                             <Button
                               type="primary"
                               className="!bg-[#23A6F0] hover:!bg-[#1890ff] rounded-full px-6 font-semibold shadow-sm"
@@ -409,7 +432,7 @@ const EventDetail: React.FC = () => {
                               disabled
                               className="bg-gray-200 text-gray-400 rounded-full px-6 border-none"
                             >
-                              Hết vé
+                              {eventCompleted ? 'Đã diễn ra' : 'Hết vé'}
                             </Button>
                           )}
                         </td>
