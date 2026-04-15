@@ -13,6 +13,24 @@ const getSecretKey = () => {
   return secretKey;
 };
 
+const getPasswordEmailDisplayName = async (user) => {
+  if (user.role === 'admin') {
+    return 'Quản trị viên';
+  }
+
+  if (user.role === 'organizer') {
+    const organizer = await Organizer.findOne({ user: user._id }).select('name');
+    return organizer?.name?.trim() || 'Ban tổ chức';
+  }
+
+  const fullName = [user.lastName, user.firstName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  return fullName || 'Khách hàng';
+};
+
 // Lấy tất cả user
 export const getAllUsers = async (req, res) => {
   try {
@@ -203,11 +221,13 @@ export const getNewPassword = async (req, res) => {
     const saltRounds = 10;
     user.password = await bcrypt.hash(newPassword, saltRounds);
     await user.save();
+
+    const displayName = await getPasswordEmailDisplayName(user);
     
     // Gửi email mật khẩu mới
     const { success } = await sendNewPassword({ 
       cusEmail: user.email, 
-      cusName: user.name, 
+      cusName: displayName,
       password: newPassword 
     });
 
