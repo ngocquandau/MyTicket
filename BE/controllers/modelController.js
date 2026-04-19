@@ -277,6 +277,17 @@ function toSafeNumber(value, fallback = 0) {
   return n
 }
 
+function shuffle(array) {
+  const arr = [...array]; // tránh mutate array gốc
+
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+
+  return arr;
+}
+
 export const getRecommendedList = async (req, res) => {
   try {
 
@@ -290,25 +301,23 @@ export const getRecommendedList = async (req, res) => {
 
     const age = user.birthday
       ? Math.floor((Date.now() - new Date(user.birthday)) / (1000 * 60 * 60 * 24 * 365))
-      : null
+      : 0
 
     const gender = encodeGender(user.gender)
 
-    const safeAge = Math.max(0, toSafeNumber(age, 0))
-    const safeGender = toSafeNumber(gender, 0)
-
     const userFeatures = [
-      safeAge,
-      safeGender,
-      Math.max(0, toSafeNumber(user.avgPurchasePrice, 0)),
-      Math.max(0, toSafeNumber(user.totalSpent, 0)),
-      Math.max(0, toSafeNumber(user.totalTicketsPurchase, 0))
+      age,
+      gender,
+      user.avgPurchasePrice || 0,
+      user.totalSpent || 0,
+      user.totalTicketsPurchase || 0
     ]
 
-    // genre stats
-    const genreStats = await Interaction.aggregate([
+    // =========================
+    // 1. LẤY FAVORITE GENRES
+    // =========================
+    const interactedGenres = await Interaction.aggregate([
       { $match: { user_id: user._id } },
-
       {
         $lookup: {
           from: "events",
@@ -317,9 +326,83 @@ export const getRecommendedList = async (req, res) => {
           as: "event"
         }
       },
-
       { $unwind: "$event" },
+      {
+        $group: {
+          _id: "$event.genre"
+        }
+      }
+    ])
 
+    const favoriteGenres = interactedGenres.map(g => g._id)
+    console.log("Favorite genres:", favoriteGenres)
+
+    // =========================
+    // 2. LẤY 50 EVENT AVAILABLE
+    // =========================
+    const now = new Date()
+
+    let events = await Event.find({
+      status: "published",
+      endDateTime: { $gte: now }
+    })
+      .sort({ startDateTime: 1 }) // gần nhất trước
+      .limit(50)
+
+    // =========================
+    // 3. FILTER LOGIC
+    // =========================
+    let selectedEvents = []
+
+    if (events.length <= 20) {
+      selectedEvents = events
+    } else {
+
+      const favoriteEvents = events.filter(e =>
+        favoriteGenres.includes(e.genre)
+      )
+
+      const otherEvents = events.filter(e =>
+        !favoriteGenres.includes(e.genre)
+      )
+
+      let x = Math.min(favoriteEvents.length, 15)
+      let y = 20 - x
+
+      // nếu thiếu y thì bù từ favorite
+      if (otherEvents.length < y) {
+        y = otherEvents.length
+        x = Math.min(20 - y, favoriteEvents.length)
+      }
+
+      console.log("y:", y, "x:", x)
+
+      // RANDOM
+      const shuffledFav   = shuffle(favoriteEvents)
+      const shuffledOther = shuffle(otherEvents)
+
+      selectedEvents = [
+        ...shuffledFav.slice(0, x),
+        ...shuffledOther.slice(0, y)
+      ]
+    }
+
+    
+
+    // =========================
+    // 4. BUILD PAYLOAD
+    // =========================
+    const genreStats = await Interaction.aggregate([
+      { $match: { user_id: user._id } },
+      {
+        $lookup: {
+          from: "events",
+          localField: "event_id",
+          foreignField: "_id",
+          as: "event"
+        }
+      },
+      { $unwind: "$event" },
       {
         $group: {
           _id: "$event.genre",
@@ -330,45 +413,38 @@ export const getRecommendedList = async (req, res) => {
     ])
 
     const genreMap = {}
-
     for (const row of genreStats) {
-      genreMap[row._id] = {
+genreMap[row._id] = {
         click: row.sameEventGenreClickCount,
         purchase: row.sameEventGenrePurchase
       }
     }
 
-    // lấy 20 event mới nhất
-    const events = await Event.find()
-      .sort({ createdAt: -1 })
-      .limit(20)
-
     const eventsPayload = {}
 
-    for (const event of events) {
-
-      const stats = genreMap[event.genre] || {
-        click: 0,
-        purchase: 0
-      }
+    for (const event of selectedEvents) {
+      const stats = genreMap[event.genre] || { click: 0, purchase: 0 }
 
       eventsPayload[event._id.toString()] = [
         encodeGenre(event.genre),
-        Math.max(0, toSafeNumber(event.ageLimit, 0)),
-        Math.max(0, toSafeNumber(event.clickCount, 0)),
-        Math.max(0, toSafeNumber(event.totalTickets, 0)),
-        Math.max(0, toSafeNumber(stats.click, 0)),
-        Math.max(0, toSafeNumber(stats.purchase, 0))
+        event.ageLimit || 0,
+        event.clickCount || 0,
+        event.totalTickets || 0,
+        stats.click,
+        stats.purchase
       ]
     }
 
+    console.log("userFeatures:", userFeatures)
+    console.log("eventsPayload:", JSON.stringify(eventsPayload, null, 2))
+    // =========================
+    // 5. CALL MODEL
+    // =========================
     const callModel = async () => {
       const url = process.env.HF_SPACE_PREDICT_API
 
       for (let i = 0; i < 3; i++) {
-
         try {
-
           const response = await axios.post(
             url,
             {
@@ -386,50 +462,20 @@ export const getRecommendedList = async (req, res) => {
           return response.data
 
         } catch (err) {
-
           if (i === 2) throw err
-
           console.log("Model sleeping... retrying")
-
           await new Promise(r => setTimeout(r, 3000))
         }
       }
     }
 
-    let data
-
-    try {
-      data = await callModel()
-    } catch (err) {
-      const status = err?.response?.status
-
-      if (status === 422) {
-        console.error("Recommendation model returned 422", {
-          modelMessage: err?.response?.data,
-          userFeatures
-        })
-
-        // Fallback nhẹ để FE vẫn có dữ liệu hiển thị thay vì fail toàn bộ section
-        const fallback = events
-          .map(event => ({
-            _id: event._id,
-            title: event.title,
-            score: toSafeNumber(event.clickCount, 0)
-          }))
-          .sort((a, b) => b.score - a.score)
-
-        return res.json(fallback)
-      }
-
-      throw err
-    }
-
+    const data = await callModel()
     const scores = data.scores || {}
 
-    const result = events.map(event => ({
-        _id: event._id,
-        title: event.title,
-        score: scores[event._id.toString()] || 0
+    const result = selectedEvents.map(event => ({
+      _id: event._id,
+      title: event.title,
+      score: scores[event._id.toString()] || 0
     }))
 
     result.sort((a, b) => b.score - a.score)
@@ -437,7 +483,6 @@ export const getRecommendedList = async (req, res) => {
     return res.json(result)
 
   } catch (err) {
-
     console.error("Recommendation error:", err.message)
 
     return res.status(500).json({

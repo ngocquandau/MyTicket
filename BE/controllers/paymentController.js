@@ -3,6 +3,9 @@ import Purchase from '../models/Purchase.js';
 import User from '../models/User.js';
 import dotenv from 'dotenv';
 
+// Import hàm gửi email tự động từ purchaseController
+import { triggerTicketEmail } from './purchaseController.js'; 
+
 dotenv.config();
 
 const payOS = new PayOS({
@@ -76,6 +79,9 @@ export const handlePayOSWebhook = async (req, res) => {
                 }, { new: true });
                 
                 console.log(`[PayOS Webhook] Cập nhật thành công đơn hàng: ${purchase._id}`);
+
+                // GỌI HÀM GỬI EMAIL TỰ ĐỘNG
+                triggerTicketEmail(purchase._id);
             }
         }
 
