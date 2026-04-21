@@ -163,12 +163,13 @@ const EventDetail: React.FC = () => {
   const minPrice = React.useMemo(() => {
     if (!ticketsDisplay.length) return null;
     const prices = ticketsDisplay
-      .map(
-        (t) => parseInt(String(t.price).toString().replace(/[^\d]/g, "")) || 0,
-      )
-      .filter((p) => p > 0);
+      .map((ticket) => {
+        const digits = String(ticket.price).replace(/[^\d]/g, '');
+        return digits === '' ? null : Number(digits);
+      })
+      .filter((price): price is number => price !== null && Number.isFinite(price) && price >= 0);
     if (!prices.length) return null;
-    return Math.min(...prices).toLocaleString("vi-VN");
+    return Math.min(...prices);
   }, [ticketsDisplay]);
 
   // Logic Mua vé
@@ -256,7 +257,7 @@ const EventDetail: React.FC = () => {
                 Giá vé chỉ từ
               </Text>
               <div className="text-[#E04646] text-3xl font-bold mt-1">
-                {minPrice ? `${minPrice} VND` : "Đang cập nhật"}
+                {minPrice === null ? 'Đang cập nhật' : minPrice === 0 ? 'Miễn phí' : `${minPrice.toLocaleString('vi-VN')} VND`}
               </div>
             </div>
             <Button

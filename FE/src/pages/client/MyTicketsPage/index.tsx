@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Typography, Empty, Button, Card, Tag, Spin, Row, Col, Modal, QRCode, message } from 'antd';
-import { CalendarOutlined, EnvironmentOutlined, QrcodeOutlined, HistoryOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Typography, Empty, Button, Card, Tag, Spin, Row, Col, Modal, QRCode, message, Input, Pagination } from 'antd';
+import { CalendarOutlined, EnvironmentOutlined, QrcodeOutlined, DownloadOutlined, SearchOutlined, StarOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import ClientLayout from '../../../layouts/ClientLayout';
+import { getAllEventsAPI } from '../../../services/eventService';
 import { downloadTicketQrImageAPI, getMyPurchasesAPI } from '../../../services/purchaseService';
 import { handleAuthError } from '../../../utils/httpError';
 
 const { Title, Text } = Typography;
+const PAGE_SIZE = 4;
+type TicketTimeFilter = 'upcoming' | 'ended';
 
 // Gộp chung Interface đầy đủ nhất
 interface PurchaseItem {
@@ -18,6 +21,7 @@ interface PurchaseItem {
   event: {
     _id: string;
     title: string;
+    status?: string;
     startDateTime: string;
     endDateTime: string;
     posterURL: string;
@@ -38,6 +42,9 @@ const MyTicketsPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [purchases, setPurchases] = useState<PurchaseItem[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [timeFilter, setTimeFilter] = useState<TicketTimeFilter>('upcoming');
   
   // State cho Modal QR
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,16 +58,34 @@ const MyTicketsPage: React.FC = () => {
 
     const fetchTickets = async () => {
       try {
-        const data = await getMyPurchasesAPI();
-        if (Array.isArray(data)) {
-          const now = new Date();
-          // LỌC: Chỉ lấy vé sự kiện chưa bắt đầu (Từ bản 2)
-          const upcomingPurchases = data.filter(p => p.event?.startDateTime && new Date(p.event.startDateTime) > now);
-          
-          // SẮP XẾP: Ngày bắt đầu gần hiện tại nhất lên đầu
-          upcomingPurchases.sort((a, b) => new Date(a.event.startDateTime).getTime() - new Date(b.event.startDateTime).getTime());
-          
-          setPurchases(upcomingPurchases);
+        const [purchaseData, completedEvents] = await Promise.all([
+          getMyPurchasesAPI(),
+          getAllEventsAPI({ status: 'completed' })
+        ]);
+
+        if (Array.isArray(purchaseData)) {
+          const completedEventIds = new Set(
+            (Array.isArray(completedEvents) ? completedEvents : []).map((event) => String(event?._id))
+          );
+
+          const paidPurchases = purchaseData
+            .filter((purchase) => purchase?.paymentStatus === 'paid')
+            .map((purchase) => {
+              const purchaseEventId = String(purchase?.event?._id || '');
+              const existingStatus = purchase?.event?.status;
+
+              return {
+                ...purchase,
+                event: purchase?.event
+                  ? {
+                      ...purchase.event,
+                      status: existingStatus || (completedEventIds.has(purchaseEventId) ? 'completed' : undefined)
+                    }
+                  : purchase?.event
+              };
+            });
+
+          setPurchases(paidPurchases);
         } else {
           setPurchases([]);
         }
@@ -111,6 +136,18 @@ const MyTicketsPage: React.FC = () => {
     return 'Vé tự do (Vào cổng)';
   };
 
+  const isEndedPurchase = (purchase: PurchaseItem) => {
+    const eventStatus = (purchase.event?.status || '').toLowerCase();
+    const eventEndTime = purchase.event?.endDateTime ? new Date(purchase.event.endDateTime).getTime() : null;
+    const eventStartTime = purchase.event?.startDateTime ? new Date(purchase.event.startDateTime).getTime() : null;
+
+    if (eventStatus === 'completed') {
+      return true;
+    }
+
+    return eventEndTime !== null ? eventEndTime < currentTime : eventStartTime !== null && eventStartTime < currentTime;
+  };
+
   // Sử dụng logic tạo URL mã QR trỏ về API Backend xuất vé HTML (Từ bản 2)
   const buildTicketHtmlUrl = (ticketId: string) => {
     const runtimeBase = `${window.location.protocol}//${window.location.hostname}:3000`;
@@ -137,44 +174,129 @@ const MyTicketsPage: React.FC = () => {
     }
   };
 
+  const normalizedKeyword = searchKeyword.trim().toLocaleLowerCase('vi-VN');
+  const currentTime = Date.now();
+  const timeFilteredPurchases = purchases.filter((purchase) => {
+    if (timeFilter === 'ended') {
+      return isEndedPurchase(purchase);
+    }
+
+    if (isEndedPurchase(purchase)) return false;
+
+    const eventEndTime = purchase.event?.endDateTime ? new Date(purchase.event.endDateTime).getTime() : null;
+    const eventStartTime = purchase.event?.startDateTime ? new Date(purchase.event.startDateTime).getTime() : null;
+    return eventEndTime !== null ? eventEndTime >= currentTime : eventStartTime !== null && eventStartTime >= currentTime;
+  });
+
+  const filteredPurchases = timeFilteredPurchases.filter((purchase) => {
+    if (!normalizedKeyword) return true;
+    const eventTitle = purchase.event?.title?.toLocaleLowerCase('vi-VN') || '';
+    return eventTitle.includes(normalizedKeyword);
+  });
+
+  filteredPurchases.sort((a, b) => {
+    const aTime = new Date(a.event?.startDateTime || 0).getTime();
+    const bTime = new Date(b.event?.startDateTime || 0).getTime();
+
+    if (timeFilter === 'ended') {
+      return bTime - aTime;
+    }
+
+    return aTime - bTime;
+  });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [normalizedKeyword, timeFilter]);
+
+  const paginatedPurchases = filteredPurchases.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
   return (
     <ClientLayout>
       <div className="bg-[#1d3f73] min-h-screen pb-10">
         <div className="container mx-auto px-6 py-8 ">
           
-          <div className="flex justify-between items-center mb-6">
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
               <QrcodeOutlined className="text-2xl text-[#23A6F0]" />
-              <Title level={2} className="!text-[#23A6F0] !m-0">Vé sắp diễn ra</Title>
+              <Title level={2} className="!text-[#23A6F0] !m-0">Danh sách vé đã thanh toán thành công</Title>
             </div>
-            {/* NÚT CHUYỂN SANG LỊCH SỬ MUA VÉ (Giữ từ bản 2) */}
-            <Button 
-              type="default" 
-              icon={<HistoryOutlined />}
-              className="!text-white !bg-transparent border-white hover:!bg-white hover:!text-[#1d3f73]"
-              onClick={() => navigate('/purchase-history')}
-            >
-              Lịch sử mua vé
-            </Button>
+            {!loading && purchases.length > 0 && (
+              <div className="w-full lg:w-[360px] lg:flex-shrink-0">
+                <Input
+                  allowClear
+                  size="large"
+                  value={searchKeyword}
+                  prefix={<SearchOutlined className="text-gray-400" />}
+                  placeholder="Nhập tên sự kiện"
+                  className="rounded-lg"
+                  onChange={(event) => setSearchKeyword(event.target.value)}
+                />
+              </div>
+            )}
           </div>
+
+          {!loading && purchases.length > 0 && (
+            <div className="mb-6 flex flex-wrap gap-3">
+              <Button
+                type={timeFilter === 'upcoming' ? 'primary' : 'default'}
+                className={timeFilter === 'upcoming' ? '!bg-[#23A6F0]' : '!border-[#23A6F0] !text-[#23A6F0]'}
+                onClick={() => setTimeFilter('upcoming')}
+              >
+                Sự kiện sắp diễn ra
+              </Button>
+              <Button
+                type={timeFilter === 'ended' ? 'primary' : 'default'}
+                className={timeFilter === 'ended' ? '!bg-[#23A6F0]' : '!border-[#23A6F0] !text-[#23A6F0]'}
+                onClick={() => setTimeFilter('ended')}
+              >
+                Sự kiện đã diễn ra
+              </Button>
+            </div>
+          )}
+
+          {!loading && purchases.length > 0 && timeFilter === 'ended' && (
+            <div className="mb-6 rounded-xl border border-orange-200 bg-orange-50 px-4 py-4 shadow-sm">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-orange-700">Đánh giá và xem lại đánh giá</div>
+                  <div className="text-sm text-orange-600">Mở mục Đánh giá để đánh giá sự kiện đã tham gia hoặc xem lại các bài đánh giá trước đó.</div>
+                </div>
+                <Button
+                  icon={<StarOutlined />}
+                  className="!border-orange-400 !text-orange-600 hover:!border-orange-500 hover:!text-orange-700"
+                  onClick={() => navigate('/my-reviews')}
+                >
+                  Đến Đánh giá
+                </Button>
+              </div>
+            </div>
+          )}
 
           {loading ? (
             <div className="flex justify-center h-60 items-center"><Spin size="large" /></div>
           ) : purchases.length === 0 ? (
             <div className="flex flex-col items-center justify-center bg-white rounded-xl shadow-sm p-12 min-h-[400px]">
-              <Empty description={<span className="text-gray-500 text-lg">Bạn chưa có vé sự kiện nào sắp diễn ra</span>} />
+              <Empty description={<span className="text-gray-500 text-lg">Bạn chưa có vé nào đã thanh toán thành công</span>} />
               <div className="flex gap-4 mt-6">
                 <Button type="primary" size="large" onClick={() => navigate('/')} className="!bg-[#23A6F0]">Khám phá sự kiện</Button>
                 <Button size="large" onClick={() => navigate('/purchase-history')}>Xem lịch sử mua vé</Button>
               </div>
             </div>
+          ) : filteredPurchases.length === 0 ? (
+            <div className="flex flex-col items-center justify-center bg-white rounded-xl shadow-sm p-12 min-h-[320px]">
+              <Empty description={<span className="text-gray-500 text-lg">{timeFilter === 'upcoming' ? 'Không có vé cho sự kiện sắp diễn ra phù hợp' : 'Không có vé cho sự kiện đã diễn ra phù hợp'}</span>} />
+            </div>
           ) : (
             <div className="space-y-6 ">
-              {purchases.map((item) => (
-                <Card key={item._id} hoverable className="rounded-xl overflow-hidden shadow-sm border-0" styles={{ body: { padding: 0 } }}>
+              {paginatedPurchases.map((item) => (
+                <Card key={item._id} hoverable className="rounded-xl overflow-hidden shadow-sm border-0 min-h-[370px] md:min-h-[260px]" styles={{ body: { padding: 0 } }}>
                   <Row align="stretch">
-                    <Col xs={24} md={6} lg={5}>
-                      <div className="h-full min-h-[220px] w-full bg-gray-100 flex items-center justify-center p-2">
+                    <Col xs={24} md={6} lg={4}>
+                      <div className="h-[158px] md:h-full md:min-h-[260px] w-full bg-gray-100 flex items-center justify-center p-2">
                         <img 
                           src={item.event?.posterURL || "https://via.placeholder.com/300"} 
                           alt={item.event?.title} 
@@ -185,44 +307,44 @@ const MyTicketsPage: React.FC = () => {
                     </Col>
                     
                     <Col xs={24} md={18} lg={19}>
-                      <div className="p-5 flex flex-col h-full justify-between">
+                      <div className="p-3 md:p-4 flex flex-col h-full min-h-[212px] md:min-h-[260px] justify-between">
                         <div>
-                          <div className="flex justify-between items-start mb-2">
-                            <Title level={4} className="!mb-0 !text-[18px] !leading-tight !text-red-700 cursor-pointer hover:text-[#23A6F0]" 
+                          <div className="flex justify-between items-start mb-1.5">
+                            <Title level={4} className="!mb-0 !text-[16px] md:!text-[17px] !leading-tight !text-red-700 cursor-pointer hover:text-[#23A6F0] !line-clamp-2 min-h-[42px] md:min-h-[46px]" 
                                    onClick={() => item.event?._id && navigate(`/event/${item.event._id}`)}>
                               {item.event?.title || "Sự kiện không xác định"}
                             </Title>
                             
-                            <Tag color={item.paymentStatus === 'paid' ? 'success' : 'warning'} className="px-3 py-1 text-sm font-medium rounded-full">
+                            <Tag color={item.paymentStatus === 'paid' ? 'success' : 'warning'} className="px-3 py-1 text-xs font-medium rounded-full">
                               {item.paymentStatus === 'paid' ? 'ĐÃ THANH TOÁN' : 'CHỜ THANH TOÁN'}
                             </Tag>
                           </div>
 
-                          <div className="space-y-1.5 mb-3 text-gray-600">
+                          <div className="space-y-1 mb-2.5 min-h-[52px] md:min-h-[56px] text-gray-600">
                             <div className="flex items-center gap-2">
                               <CalendarOutlined className="text-[#23A6F0]" />
                               {/* Highlight ngày sự kiện theo màu cam từ bản 2 */}
-                              <span className="text-[16px] leading-tight font-medium text-orange-600">{formatDate(item.event?.startDateTime)}</span>
+                              <span className="text-[15px] leading-tight font-medium text-orange-600">{formatDate(item.event?.startDateTime)}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <EnvironmentOutlined className="text-[#23A6F0]" />
-                              <span className="text-[16px] leading-tight line-clamp-1">{item.event?.location?.address || "Đang cập nhật địa điểm"}</span>
+                              <span className="text-[15px] leading-tight line-clamp-1">{item.event?.location?.address || "Đang cập nhật địa điểm"}</span>
                             </div>
                           </div>
                           
-                          <div className="bg-[#F8FAFC] p-3 rounded-lg border border-gray-100">
-                             <div className="flex justify-between items-center flex-wrap gap-3 mb-2">
+                            <div className="bg-[#F8FAFC] p-2.5 rounded-lg border border-gray-100 min-h-[104px] max-h-[104px] overflow-y-auto pr-1 md:min-h-[118px] md:max-h-[118px] md:pr-2">
+                             <div className="flex justify-between items-center flex-wrap gap-2.5 mb-2">
                                 <div>
-                                   <span className="text-gray-500 mr-2">Loại vé:</span>
-                                   <span className="font-bold text-gray-800">{item.ticketClass?.name}</span>
+                                   <span className="text-gray-500 mr-2 text-sm">Loại vé:</span>
+                                   <span className="font-bold text-gray-800 text-sm">{item.ticketClass?.name}</span>
                                 </div>
                                 <div>
-                                   <span className="text-gray-500 mr-2">Số lượng:</span>
-                                   <span className="font-bold text-gray-800">x{item.quantity}</span>
+                                   <span className="text-gray-500 mr-2 text-sm">Số lượng:</span>
+                                   <span className="font-bold text-gray-800 text-sm">x{item.quantity}</span>
                                 </div>
                                 <div>
-                                   <span className="text-gray-500 mr-2">Tổng tiền:</span>
-                                   <span className="font-bold text-[#E04646] text-base">{formatCurrency(item.totalAmount)}</span>
+                                   <span className="text-gray-500 mr-2 text-sm">Tổng tiền:</span>
+                                   <span className="font-bold text-[#E04646] text-sm">{formatCurrency(item.totalAmount)}</span>
                                 </div>
                              </div>
 
@@ -231,7 +353,7 @@ const MyTicketsPage: React.FC = () => {
                                 <div className="flex flex-wrap gap-2">
                                   {item.ticketList && item.ticketList.length > 0 ? (
                                     item.ticketList.map((ticket, idx) => (
-                                      <Tag key={idx} color={item.ticketClass?.seatType === 'reserved' ? 'purple' : 'blue'} className="px-3 py-1 text-sm rounded border-opacity-50">
+                                      <Tag key={idx} color={item.ticketClass?.seatType === 'reserved' ? 'purple' : 'blue'} className="px-3 py-1 text-xs rounded border-opacity-50">
                                         {renderSeatLabel(ticket.seat, item.ticketClass?.seatType)}
                                         <span className="opacity-50 mx-2">|</span> 
                                         <span className="font-mono text-xs">{ticket.ticketId}</span>
@@ -245,11 +367,11 @@ const MyTicketsPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="mt-4 flex justify-end">
+                        <div className="mt-3 flex flex-wrap justify-end gap-2">
                           <Button 
                             type="primary" 
                             icon={<QrcodeOutlined />} 
-                            className="!bg-[#23A6F0]" 
+                            className="w-full justify-center md:w-auto !bg-[#23A6F0]" 
                             onClick={() => showQRModal(item.ticketList, item.ticketClass?.seatType)}
                           >
                             Quét QR Check-in
@@ -260,6 +382,18 @@ const MyTicketsPage: React.FC = () => {
                   </Row>
                 </Card>
               ))}
+
+              {filteredPurchases.length > PAGE_SIZE && (
+                <div className="flex justify-center pt-2">
+                  <Pagination
+                    current={currentPage}
+                    pageSize={PAGE_SIZE}
+                    total={filteredPurchases.length}
+                    showSizeChanger={false}
+                    onChange={(page) => setCurrentPage(page)}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

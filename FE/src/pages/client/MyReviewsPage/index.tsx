@@ -157,6 +157,11 @@ const MyReviewsPage: React.FC = () => {
                                 {existingReviews[event._id].comment}
                               </div>
                             )}
+                            <div className="mt-4 flex justify-end">
+                              <Button onClick={() => navigate('/my-tickets')}>
+                                Quay về Vé của tôi
+                              </Button>
+                            </div>
                           </div>
                         ) : (
                           

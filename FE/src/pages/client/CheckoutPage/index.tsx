@@ -7,15 +7,14 @@ import {
   EnvironmentOutlined,
   MinusOutlined,
   PlusOutlined,
-  GiftOutlined,
   ShoppingCartOutlined,
-  ExclamationCircleOutlined // Icon cảnh báo
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import ClientLayout from '../../../layouts/ClientLayout';
 import { createPaymentUrlAPI, createPurchaseAPI } from '../../../services/purchaseService';
 
 const { Title, Text } = Typography;
-const { confirm } = Modal; // Sử dụng Modal.confirm của Ant Design
+const { confirm } = Modal;
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
@@ -61,8 +60,13 @@ const CheckoutPage: React.FC = () => {
   if (!event || !ticket) return null;
 
   const priceNumber = parseInt(String(ticket.price).replace(/[^\d]/g, '')) || 0;
+  const isFreeTicket = priceNumber === 0;
 
   const applyVoucher = () => {
+    if (isFreeTicket) {
+        message.info("Vé miễn phí không cần dùng mã giảm giá.");
+        return;
+    }
     const code = voucher.trim().toUpperCase();
     let d = 0;
     if (code === 'MYTICKET10') d = Math.floor(priceNumber * qty * 0.1);
@@ -74,13 +78,20 @@ const CheckoutPage: React.FC = () => {
   };
 
   const minus = () => setQty((q) => Math.max(1, q - 1));
-  const plus = () => setQty((q) => Math.min(ticket.isReserved ? availableSeats.length : 10, q + 1));
+  
+  // CHẶN SỐ LƯỢNG NẾU LÀ VÉ FREE
+  const plus = () => {
+    if (isFreeTicket) {
+        message.warning("Vé miễn phí chỉ được phép nhận tối đa 1 vé mỗi lần.");
+        return;
+    }
+    setQty((q) => Math.min(ticket.isReserved ? availableSeats.length : 10, q + 1));
+  };
 
   const subtotal = priceNumber * qty;
   const total = Math.max(0, subtotal - discount);
   const money = (n: number) => n.toLocaleString('vi-VN');
 
-  // --- Hàm xử lý thanh toán chính (gọi API) ---
   const processPayment = async () => {
     try {
       setLoading(true);
@@ -89,7 +100,7 @@ const CheckoutPage: React.FC = () => {
         ticketClassId: ticket.ticketClassId,
         quantity: qty,
         selectedTicketIds: isReserved ? selectedSeats : [],
-        paymentMethod: 'PayOS', // CẬP NHẬT SANG PAYOS
+        paymentMethod: 'PayOS', // LUÔN TRUYỀN 'PayOS' ĐỂ PASS QUA VALIDATION CỦA MODEL
         voucherCode: voucher
       });
 
@@ -97,10 +108,19 @@ const CheckoutPage: React.FC = () => {
         throw new Error("Không thể tạo đơn hàng");
       }
 
+      // NẾU LÀ VÉ 0Đ HOẶC ÁP VOUCHER VỀ 0Đ -> BỎ QUA PAYOS
+      if (purchaseRes.isFree || purchaseRes.totalAmount === 0) {
+        message.success("Nhận vé thành công! Đang chuyển đến ví vé của bạn...");
+        setTimeout(() => {
+            navigate('/my-tickets');
+        }, 1500);
+        return;
+      }
+
       message.loading("Đang chuyển hướng sang cổng thanh toán...", 1);
 
       const paymentRes = await createPaymentUrlAPI({
-        purchaseId: purchaseRes.purchaseId // Không cần truyền paymentMethodType nữa
+        purchaseId: purchaseRes.purchaseId 
       });
 
       if (paymentRes && paymentRes.payUrl) {
@@ -111,15 +131,13 @@ const CheckoutPage: React.FC = () => {
 
     } catch (error: any) {
       console.error(error);
-      const errorMsg = error.response?.data?.error || "Lỗi thanh toán";
+      const errorMsg = error.response?.data?.error || "Lỗi khi xử lý đơn hàng";
       message.error(errorMsg);
-      setLoading(false); // Tắt loading nếu lỗi
+      setLoading(false); 
     }
   };
 
-  // --- Hàm kiểm tra và xác nhận trước khi thanh toán ---
   const handleCheckoutClick = () => {
-    // 1. Kiểm tra Token
     const token = localStorage.getItem('token');
     if (!token) {
       message.warning("Vui lòng đăng nhập để mua vé");
@@ -127,7 +145,6 @@ const CheckoutPage: React.FC = () => {
       return;
     }
 
-    // 2. Validate dữ liệu
     if (isReserved && selectedSeats.length === 0) {
       message.warning("Vui lòng chọn ít nhất 1 ghế!");
       return;
@@ -136,8 +153,11 @@ const CheckoutPage: React.FC = () => {
       message.warning("Số lượng vé không hợp lệ!");
       return;
     }
+    if (isFreeTicket && qty > 1) {
+      message.warning("Bạn chỉ có thể nhận 1 vé miễn phí mỗi lần.");
+      return;
+    }
 
-    // 3. Kiểm tra Độ tuổi (Age Limit)
     if (event.ageLimit && event.ageLimit > 0) {
       confirm({
         title: 'Lưu ý về độ tuổi',
@@ -152,15 +172,10 @@ const CheckoutPage: React.FC = () => {
         cancelText: 'Quay lại',
         okButtonProps: { className: '!bg-[#22C55E] hover:!bg-[#1ea851]' },
         onOk() {
-          processPayment(); // Người dùng đồng ý -> Gọi API
+          processPayment();
         },
-        onCancel() {
-          // Người dùng hủy -> Không làm gì (đóng modal)
-        },
-        centered: true,
       });
     } else {
-      // Không có giới hạn tuổi -> Thanh toán luôn
       processPayment();
     }
   };
@@ -185,9 +200,7 @@ const CheckoutPage: React.FC = () => {
 
           <Spin spinning={loading} tip="Đang xử lý giao dịch...">
             <div className="grid grid-cols-12 gap-6">
-              {/* Left Content */}
               <div className="col-span-12 lg:col-span-8 space-y-6">
-                {/* Event Info */}
                 <div className="bg-white border rounded-xl p-5 shadow-sm">
                   <div className="grid grid-cols-12 gap-4">
                     <div className="col-span-12 md:col-span-4">
@@ -202,7 +215,6 @@ const CheckoutPage: React.FC = () => {
                         <EnvironmentOutlined className="text-gray-600 text-lg" />
                         <Text className="text-base">{address}</Text>
                       </div>
-                      {/* Hiển thị Age Limit ở đây để user dễ thấy */}
                       {event.ageLimit > 0 && (
                          <div className="mt-3">
                              <Tag color="warning" className="text-sm px-3 py-1 border-orange-300 text-orange-600 font-medium">
@@ -214,13 +226,14 @@ const CheckoutPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Ticket Selection */}
                 <div className="bg-white border rounded-xl p-5 shadow-sm">
                   <div className="flex flex-col gap-4">
                     <div className="flex justify-between items-center">
                         <div>
                             <div className="text-[#23A6F0] text-lg font-bold">{ticket.type}</div>
-                            <div className="text-[#E04646] font-semibold mt-1">{money(priceNumber)} VND</div>
+                            <div className="text-[#E04646] font-semibold mt-1">
+                                {isFreeTicket ? "Miễn phí" : `${money(priceNumber)} VND`}
+                            </div>
                         </div>
                         
                         {isReserved ? (
@@ -230,10 +243,16 @@ const CheckoutPage: React.FC = () => {
                                     mode="multiple"
                                     placeholder="Chọn ghế"
                                     style={{ width: '100%' }}
-                                    onChange={(values) => setSelectedSeats(values)}
+                                    onChange={(values) => {
+                                        if (isFreeTicket && values.length > 1) {
+                                            message.warning("Chỉ được chọn 1 ghế cho vé miễn phí.");
+                                            return;
+                                        }
+                                        setSelectedSeats(values);
+                                    }}
                                     maxTagCount="responsive"
                                     value={selectedSeats}
-                                    options={availableSeats.map((s) => ({ label: s.seat, value: s._id }))}
+                                    options={availableSeats.map((s) => ({ label: s.seat, value: s._id, disabled: isFreeTicket && selectedSeats.length >= 1 && !selectedSeats.includes(s._id) }))}
                                     status={selectedSeats.length === 0 ? 'warning' : ''}
                                 />
                             </div>
@@ -241,7 +260,7 @@ const CheckoutPage: React.FC = () => {
                             <div className="flex items-center gap-3">
                                 <Button shape="circle" onClick={minus} disabled={qty <= 1} icon={<MinusOutlined />} />
                                 <div className="w-12 text-center text-lg font-medium">{qty}</div>
-                                <Button shape="circle" onClick={plus} icon={<PlusOutlined />} />
+                                <Button shape="circle" onClick={plus} disabled={isFreeTicket} icon={<PlusOutlined />} />
                             </div>
                         )}
                     </div>
@@ -249,7 +268,6 @@ const CheckoutPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right Summary */}
               <div className="col-span-12 lg:col-span-4">
                 <div className="bg-white border rounded-xl p-5 shadow-sm lg:sticky lg:top-6">
                   <div className="flex items-center gap-2 mb-4 pb-4 border-b">
@@ -264,7 +282,7 @@ const CheckoutPage: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Đơn giá</span>
-                      <span className="font-medium">{money(priceNumber)} VND</span>
+                      <span className="font-medium">{isFreeTicket ? "0 VND" : `${money(priceNumber)} VND`}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Số lượng</span>
@@ -286,13 +304,15 @@ const CheckoutPage: React.FC = () => {
                       <span className="font-semibold">{money(subtotal)} VND</span>
                     </div>
 
-                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Input size="small" placeholder="Mã giảm giá..." value={voucher} onChange={(e) => setVoucher(e.target.value)} />
-                        <Button size="small" onClick={applyVoucher}>Áp dụng</Button>
+                    {!isFreeTicket && (
+                      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Input size="small" placeholder="Mã giảm giá..." value={voucher} onChange={(e) => setVoucher(e.target.value)} />
+                          <Button size="small" onClick={applyVoucher}>Áp dụng</Button>
+                        </div>
+                        {discount > 0 && <div className="mt-2 text-green-600 text-sm">Giảm: -{money(discount)} VND</div>}
                       </div>
-                      {discount > 0 && <div className="mt-2 text-green-600 text-sm">Giảm: -{money(discount)} VND</div>}
-                    </div>
+                    )}
 
                     <div className="border-t border-gray-200 my-4" />
                     <div className="flex justify-between items-center">
@@ -308,7 +328,7 @@ const CheckoutPage: React.FC = () => {
                     onClick={handleCheckoutClick} 
                     loading={loading}
                   >
-                    Thanh toán qua PayOS (QR Code)
+                    {total === 0 ? "Nhận vé ngay" : "Thanh toán qua PayOS"}
                   </Button>
                   
                   <div className="text-center mt-3 text-xs text-gray-500">

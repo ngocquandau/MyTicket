@@ -10,13 +10,27 @@ const { Title, Text } = Typography;
 const isUserVisibleEvent = (event: any) => ['published', 'completed'].includes(event?.status);
 const isCompletedEvent = (event: any) => event?.status === 'completed';
 
-function getMinPrice(tickets?: Array<{ price: string | number }>) {
+function getMinPrice(event?: { minTicketPrice?: number | null; tickets?: Array<{ price: string | number }> }) {
+  if (typeof event?.minTicketPrice === 'number' && event.minTicketPrice >= 0) {
+    return event.minTicketPrice === 0
+      ? 'Miễn phí'
+      : `Từ ${event.minTicketPrice.toLocaleString('vi-VN')} VND`;
+  }
+
+  const tickets = event?.tickets;
   if (!tickets?.length) return 'Đang cập nhật';
+
   const nums = tickets
-    .map(t => parseInt(String(t.price).replace(/[^\d]/g, '')) || 0)
-    .filter(n => n > 0);
+    .map((ticket) => {
+      const digits = String(ticket.price).replace(/[^\d]/g, '');
+      return digits === '' ? null : Number(digits);
+    })
+    .filter((price): price is number => price !== null && Number.isFinite(price) && price >= 0);
+
   if (!nums.length) return 'Đang cập nhật';
-  return `Từ ${Math.min(...nums).toLocaleString('vi-VN')} VND`;
+
+  const minPrice = Math.min(...nums);
+  return minPrice === 0 ? 'Miễn phí' : `Từ ${minPrice.toLocaleString('vi-VN')} VND`;
 }
 
 function getLocationText(location?: any) {
@@ -161,7 +175,7 @@ const SearchResultPage: React.FC = () => {
                     <span>{new Date(ev.startDateTime).toLocaleDateString('vi-VN')}</span>
                   </div>
                   <div className="flex items-center justify-between mt-auto">
-                    <span className="text-xs md:text-sm px-3 py-1 rounded-full border border-[#3b6ea8] text-[#79b7ff] bg-[#0e1f36]">{getMinPrice(ev.tickets)}</span>
+                    <span className="text-xs md:text-sm px-3 py-1 rounded-full border border-[#3b6ea8] text-[#79b7ff] bg-[#0e1f36]">{getMinPrice(ev)}</span>
                     <Button
                       type="default"
                       size="small"

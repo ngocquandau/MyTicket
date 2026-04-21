@@ -9,6 +9,7 @@ import {
   TwitterOutlined,
   SearchOutlined,
   CreditCardOutlined,
+  StarOutlined,
   UserOutlined,
   LogoutOutlined, 
 } from '@ant-design/icons';
@@ -74,6 +75,15 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       message.info('Vui lòng đăng nhập để xem vé của bạn');
       setPendingRedirect({ path: '/my-tickets' });
       setIsLoginOpen(true); 
+    }
+  };
+
+  const handleMyReviewsClick = (e: React.MouseEvent) => {
+    if (!isLoggedIn) {
+      e.preventDefault();
+      message.info('Vui lòng đăng nhập để xem đánh giá của bạn');
+      setPendingRedirect({ path: '/my-reviews' });
+      setIsLoginOpen(true);
     }
   };
 
@@ -171,6 +181,17 @@ const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
                 <CreditCardOutlined className="text-xl" />
               </div>
               <span className="hidden md:inline">Vé của tôi</span>
+            </Link>
+
+            <Link
+              to="/my-reviews"
+              onClick={handleMyReviewsClick}
+              className="flex items-center gap-2 text-[#F59E0B] hover:text-[#d48806] transition-colors no-underline group"
+            >
+              <div className="p-2 bg-orange-50 rounded-full group-hover:bg-orange-100 transition-colors">
+                <StarOutlined className="text-xl" />
+              </div>
+              <span className="hidden md:inline">Đánh giá</span>
             </Link>
 
             {/* Phân luồng hiển thị */}

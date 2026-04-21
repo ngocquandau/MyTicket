@@ -10,6 +10,9 @@ import Voucher from '../models/Voucher.js';
 import User from '../models/User.js';
 import Ticket from '../models/Ticket.js';
 
+// Import service gửi email
+import { sendBookingConfirmation } from '../services/emailService.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -36,6 +39,77 @@ const getWatermarkLogoDataUri = () => {
         return '';
     }
 };
+
+const getFrontendBaseUrl = () => process.env.FRONTEND_URL || 'http://localhost:3000';
+const buildTicketInfoUrl = (ticketId) => `${getFrontendBaseUrl()}/ticket-info/${encodeURIComponent(ticketId)}`;
+const buildTicketQrAttachment = async (ticketId) => ({
+    cid: `ticket-qr-${ticketId}@myticket`,
+    filename: `ticket-${ticketId}.png`,
+    content: await QRCode.toBuffer(buildTicketInfoUrl(ticketId), {
+        type: 'png',
+        width: 280,
+        margin: 1,
+    }),
+});
+
+// ==========================================
+// HÀM HELPER TỰ ĐỘNG GỬI EMAIL XÁC NHẬN VÉ
+// ==========================================
+export const triggerTicketEmail = async (purchaseId) => {
+    try {
+        const purchase = await Purchase.findById(purchaseId)
+            .populate('user')
+            .populate({
+                path: 'ticketClass',
+                populate: { path: 'event' }
+            });
+
+        if (!purchase || !purchase.user || !purchase.ticketClass || !purchase.ticketClass.event) {
+            return;
+        }
+
+        const user = purchase.user;
+        const event = purchase.ticketClass.event;
+
+        const linkedTickets = await ensurePurchaseTickets(purchase);
+        const ticketEntries = await Promise.all(
+            linkedTickets
+                .filter((ticket) => ticket?.ticketId)
+                .map(async (ticket) => {
+                    const qrAttachment = await buildTicketQrAttachment(ticket.ticketId);
+
+                    return {
+                        ticketId: ticket.ticketId,
+                        seat: ticket.seat || 'Vé tự do',
+                        link: buildTicketInfoUrl(ticket.ticketId),
+                        qrCid: qrAttachment.cid,
+                        qrFilename: qrAttachment.filename,
+                        qrContent: qrAttachment.content,
+                    };
+                })
+        );
+
+        const primaryTicket = ticketEntries[0];
+
+        await sendBookingConfirmation({
+            cusEmail: user.email,
+            cusName: `${user.lastName || ''} ${user.firstName || ''}`.trim(),
+            eventName: event.title,
+            eventDate: new Date(event.startDateTime).toLocaleDateString('vi-VN'),
+            venue: event.location?.address || 'Xem chi tiết trên ứng dụng',
+            link: primaryTicket?.link || `${getFrontendBaseUrl()}/my-tickets`,
+            qrCid: primaryTicket?.qrCid || '',
+            qrFilename: primaryTicket?.qrFilename || '',
+            qrContent: primaryTicket?.qrContent || null,
+            ticketEntries,
+        });
+        
+        console.log(`[Email] Đã gửi email xác nhận vé cho đơn hàng ${purchaseId}`);
+    } catch (error) {
+        console.error("[Email Error] Lỗi khi gửi email vé tự động:", error);
+    }
+};
+// ==========================================
 
 const ensurePurchaseTickets = async (purchaseDoc) => {
     const purchase = purchaseDoc.toObject ? purchaseDoc.toObject() : purchaseDoc;
@@ -121,6 +195,11 @@ export const createPurchase = async (req, res) => {
         if (!tc) throw new Error('Hạng vé không tồn tại');
         if (tc.status !== 'available') throw new Error('Hạng vé này hiện không khả dụng');
 
+        // KIỂM TRA ĐIỀU KIỆN VÉ MIỄN PHÍ: Chỉ cho phép mua 1 vé
+        if (tc.price === 0 && quantity > 1) {
+            throw new Error('Đối với vé miễn phí, mỗi lần chỉ được nhận tối đa 1 vé.');
+        }
+
         let ticketRecords = [];
 
         if (tc.seatType === 'reserved') {
@@ -182,6 +261,9 @@ export const createPurchase = async (req, res) => {
             finalAmount = Math.max(0, originalPrice - discount);
         }
 
+        // BIẾN XÁC ĐỊNH LÀ ĐƠN HÀNG MIỄN PHÍ HOẶC GIẢM VỀ 0Đ
+        const isFree = finalAmount === 0;
+
         const newPurchase = new Purchase({
             user: userId,
             event: tc.event,
@@ -190,8 +272,9 @@ export const createPurchase = async (req, res) => {
             totalAmount: finalAmount,
             originalPrice: originalPrice,
             voucher: voucherUsed ? voucherUsed._id : null,
-            paymentMethod,
-            paymentStatus: 'pending'
+            paymentMethod: paymentMethod,
+            paymentStatus: isFree ? 'paid' : 'pending',
+            purchaseDate: isFree ? new Date() : undefined 
         });
         await newPurchase.save({ session });
 
@@ -212,12 +295,31 @@ export const createPurchase = async (req, res) => {
             await voucherUsed.save({ session });
         }
 
+        // NẾU LÀ VÉ FREE, CẬP NHẬT LUÔN THỐNG KÊ CHO NGƯỜI DÙNG
+        if (isFree) {
+            await User.findByIdAndUpdate(userId, {
+                $inc: { 
+                    totalSpent: finalAmount, 
+                    totalTicketsPurchase: quantity 
+                },
+                $set: { accumulateFlag: true } 
+            }, { session });
+        }
+
         await session.commitTransaction();
 
+        // NẾU LÀ VÉ FREE THÌ GỬI MAIL LUÔN (Chạy nền)
+        if (isFree) {
+            setTimeout(() => {
+                triggerTicketEmail(newPurchase._id);
+            }, 500);
+        }
+
         res.status(201).json({
-            message: 'Tạo đơn hàng thành công',
+            message: isFree ? 'Nhận vé thành công' : 'Tạo đơn hàng thành công',
             purchaseId: newPurchase._id,
-            totalAmount: finalAmount
+            totalAmount: finalAmount,
+            isFree: isFree 
         });
 
     } catch (err) {
@@ -275,8 +377,7 @@ export const downloadTicketQrImage = async (req, res) => {
             return res.status(403).json({ error: 'Bạn không có quyền tải QR của vé này' });
         }
 
-        const publicApiBase = process.env.PUBLIC_API_BASE_URL || 'http://localhost:3000';
-        const qrValue = `${publicApiBase}/api/purchases/tickets/${encodeURIComponent(ticket.ticketId)}/e-ticket`;
+        const qrValue = buildTicketInfoUrl(ticket.ticketId);
 
         const imageBuffer = await QRCode.toBuffer(qrValue, {
             type: 'png',

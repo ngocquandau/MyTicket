@@ -288,7 +288,6 @@ function shuffle(array) {
   return arr;
 }
 
-//====Cập nhật cách lấy input mới====
 export const getRecommendedList = async (req, res) => {
   try {
 
@@ -302,7 +301,7 @@ export const getRecommendedList = async (req, res) => {
 
     const age = user.birthday
       ? Math.floor((Date.now() - new Date(user.birthday)) / (1000 * 60 * 60 * 24 * 365))
-      : null
+      : 0
 
     const gender = encodeGender(user.gender)
 
@@ -388,6 +387,8 @@ export const getRecommendedList = async (req, res) => {
       ]
     }
 
+    
+
     // =========================
     // 4. BUILD PAYLOAD
     // =========================
@@ -413,7 +414,7 @@ export const getRecommendedList = async (req, res) => {
 
     const genreMap = {}
     for (const row of genreStats) {
-      genreMap[row._id] = {
+genreMap[row._id] = {
         click: row.sameEventGenreClickCount,
         purchase: row.sameEventGenrePurchase
       }
@@ -434,6 +435,8 @@ export const getRecommendedList = async (req, res) => {
       ]
     }
 
+    console.log("userFeatures:", userFeatures)
+    console.log("eventsPayload:", JSON.stringify(eventsPayload, null, 2))
     // =========================
     // 5. CALL MODEL
     // =========================

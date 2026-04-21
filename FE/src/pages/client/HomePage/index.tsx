@@ -74,13 +74,27 @@ const HomePage: React.FC = () => {
     return () => clearInterval(timer);
   }, [events]);
 
-  const getMinPrice = (tickets?: Array<{ price: string | number }>) => {
+  const getMinPrice = (event?: { minTicketPrice?: number | null; tickets?: Array<{ price: string | number }> }) => {
+    if (typeof event?.minTicketPrice === 'number' && event.minTicketPrice >= 0) {
+      return event.minTicketPrice === 0
+        ? 'Miễn phí'
+        : `Từ ${event.minTicketPrice.toLocaleString('vi-VN')} VND`;
+    }
+
+    const tickets = event?.tickets;
     if (!tickets || tickets.length === 0) return 'Đang cập nhật';
+
     const prices = tickets
-      .map(t => parseInt(String(t.price).replace(/[^\d]/g, '')) || 0)
-      .filter(p => p > 0);
+      .map((ticket) => {
+        const digits = String(ticket.price).replace(/[^\d]/g, '');
+        return digits === '' ? null : Number(digits);
+      })
+      .filter((price): price is number => price !== null && Number.isFinite(price) && price >= 0);
+
     if (!prices.length) return 'Đang cập nhật';
-    return `Từ ${Math.min(...prices).toLocaleString('vi-VN')} VND`;
+
+    const minPrice = Math.min(...prices);
+    return minPrice === 0 ? 'Miễn phí' : `Từ ${minPrice.toLocaleString('vi-VN')} VND`;
   };
 
   const visibleEvents = React.useMemo(() => {
@@ -213,7 +227,7 @@ const HomePage: React.FC = () => {
                       </div>
                       <div className="flex justify-between items-center mt-auto gap-3">
                         <span className="text-xs md:text-sm px-3 py-1 rounded-full border border-[#3b6ea8] text-[#79b7ff] bg-[#0e1f36]">
-                          {getMinPrice(ev.tickets)}
+                          {getMinPrice(ev)}
                         </span>
                         <Button
                           type="default"
@@ -271,7 +285,7 @@ const HomePage: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center mt-auto">
                     <span className="text-xs md:text-sm px-3 py-1 rounded-full border border-[#3b6ea8] text-[#79b7ff] bg-[#0e1f36]">
-                      {getMinPrice(ev.tickets)}
+                      {getMinPrice(ev)}
                     </span>
                     <Button
                       type="default"

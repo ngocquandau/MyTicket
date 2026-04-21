@@ -65,13 +65,46 @@ export const getAllEvents = async (req, res) => {
       Event.countDocuments(query)
     ]);
 
+    const eventIds = events.map((event) => event._id);
+    const ticketSummaries = eventIds.length
+      ? await TicketClass.aggregate([
+          {
+            $match: {
+              event: { $in: eventIds }
+            }
+          },
+          {
+            $group: {
+              _id: '$event',
+              minTicketPrice: { $min: '$price' },
+              ticketClassCount: { $sum: 1 }
+            }
+          }
+        ])
+      : [];
+
+    const ticketSummaryMap = new Map(
+      ticketSummaries.map((summary) => [String(summary._id), summary])
+    );
+
+    const enrichedEvents = events.map((event) => {
+      const summary = ticketSummaryMap.get(String(event._id));
+      const eventData = event.toObject ? event.toObject() : event;
+
+      return {
+        ...eventData,
+        minTicketPrice: summary?.minTicketPrice ?? null,
+        ticketClassCount: summary?.ticketClassCount ?? 0
+      };
+    });
+
     const nextCursor =
       events.length > 0 && !search
         ? events[events.length - 1][sortField]
         : null;
 
     res.json({
-      events,
+      events: enrichedEvents,
       pagination: {
         page: pageNum,
         limit: limitNum,
