@@ -414,7 +414,7 @@ export const getRecommendedList = async (req, res) => {
 
     const genreMap = {}
     for (const row of genreStats) {
-genreMap[row._id] = {
+    genreMap[row._id] = {
         click: row.sameEventGenreClickCount,
         purchase: row.sameEventGenrePurchase
       }
