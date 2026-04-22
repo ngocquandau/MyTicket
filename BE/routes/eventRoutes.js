@@ -21,6 +21,6 @@ router.put    ('/:id',  verifyToken, verifyAdmin, updateEvent);
 router.delete ('/:id',  verifyToken, verifyAdmin, deleteEvent);
 
 router.get    ('/:id/tickets', getTicketClassesByEvent);
-router.post('/auto-update-status', verifyCronService, autoUpdateEventStatus);
+router.post   ('/auto-update-status', verifyCronService, autoUpdateEventStatus);
 
 export default router;
