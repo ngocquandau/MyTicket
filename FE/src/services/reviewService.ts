@@ -14,3 +14,8 @@ export const getMyReviewAPI = async (eventId: string) => {
   const res = await axiosClient.get(`/api/review/${eventId}/me`);
   return res.data;
 };
+
+export const getEventReviewsAPI = async (eventId: string) => {
+  const res = await axiosClient.get(`/api/review/${eventId}`);
+  return res.data;
+};

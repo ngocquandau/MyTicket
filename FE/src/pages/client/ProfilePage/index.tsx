@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, Form, Input, Button, Select, DatePicker, Typography, Spin, message, Upload, Avatar, Divider } from 'antd';
 import type { RcFile, UploadProps } from 'antd/es/upload';
 import dayjs, { Dayjs } from 'dayjs';
-import { UserOutlined } from '@ant-design/icons';
+import { UserOutlined, CheckCircleFilled } from '@ant-design/icons';
 import ClientLayout from '../../../layouts/ClientLayout';
 import { getMyProfileAPI, updateMyProfileAPI, UserProfile } from '../../../services/userService';
 import axiosClient from '../../../services/axiosClient';
@@ -30,6 +30,19 @@ const ProfilePage: React.FC = () => {
   const [form] = Form.useForm<ProfileFormValues>();
   const [passwordForm] = Form.useForm();
   const navigate = useNavigate();
+
+  // State theo dõi mật khẩu
+  const [passwordValue, setPasswordValue] = React.useState('');
+
+  // Các quy tắc kiểm tra mật khẩu
+  const passwordRequirements = [
+    { label: "Từ 8 - 32 ký tự", regex: /^.{8,32}$/ },
+    { label: "Bao gồm chữ thường và số", regex: /(?=.*[a-z])(?=.*\d)/ },
+    { label: "Bao gồm ký tự đặc biệt (!, $, @, %,...)", regex: /(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/ },
+    { label: "Có ít nhất 1 ký tự in hoa", regex: /(?=.*[A-Z])/ }
+  ];
+
+  const getRequirementStatus = (regex: RegExp) => regex.test(passwordValue);
 
   const fillForm = (user: UserProfile) => {
     form.setFieldsValue({
@@ -94,7 +107,6 @@ const ProfilePage: React.FC = () => {
     fd.append('file', file);
 
     if (profile?._id) {
-      // gửi cả 2 key để tương thích nếu BE đang đọc khác tên field
       fd.append('userId', profile._id);
       fd.append('userid', profile._id);
     }
@@ -140,7 +152,6 @@ const ProfilePage: React.FC = () => {
       // đã notify ở handleUpload
     }
 
-    // chặn Upload tự gửi request mặc định
     return Upload.LIST_IGNORE;
   };
 
@@ -150,6 +161,7 @@ const ProfilePage: React.FC = () => {
       await axiosClient.put('/api/user/profile', { password: values.password.trim() });
       message.success('Đổi mật khẩu thành công');
       passwordForm.resetFields();
+      setPasswordValue('');
       setShowChangePassword(false);
     } catch (error: any) {
       if (handleAuthError(error, navigate, { notify: message.warning })) {
@@ -288,18 +300,52 @@ const ProfilePage: React.FC = () => {
                   form={passwordForm}
                   layout="vertical"
                   onFinish={handleChangePassword}
+                  onValuesChange={(changedValues) => {
+                    if (changedValues.password !== undefined) {
+                      setPasswordValue(changedValues.password);
+                    }
+                  }}
                   className="max-w-[460px] mt-5"
                 >
                   <Form.Item
                     name="password"
                     label="Mật khẩu mới"
+                    style={{ marginBottom: 12 }}
                     rules={[
                       { required: true, message: 'Vui lòng nhập mật khẩu mới' },
-                      { min: 6, message: 'Mật khẩu tối thiểu 6 ký tự' }
+                      () => ({
+                        validator(_, value) {
+                          if (!value) return Promise.resolve();
+                          const allMet = passwordRequirements.every(req => req.regex.test(value));
+                          if (!allMet) {
+                            return Promise.reject(new Error('Mật khẩu chưa đáp ứng đủ yêu cầu bảo mật'));
+                          }
+                          return Promise.resolve();
+                        },
+                      }),
                     ]}
                   >
                     <Input.Password placeholder="Nhập mật khẩu mới" className="!rounded-lg" />
                   </Form.Item>
+
+                  {/* Bảng yêu cầu mật khẩu trực quan */}
+                  <div className="mb-4 pl-2">
+                    {passwordRequirements.map((req, index) => {
+                      const isMet = getRequirementStatus(req.regex);
+                      return (
+                        <div key={index} className="flex items-center mb-1.5" style={{ color: isMet ? '#52c41a' : '#8c8c8c', fontSize: '13px' }}>
+                          {isMet ? (
+                            <CheckCircleFilled className="text-[#52c41a] mr-2 text-[14px]" />
+                          ) : (
+                            <div className="w-[14px] h-[14px] rounded-full bg-[#bfbfbf] text-white flex items-center justify-center text-[10px] font-bold mr-2">
+                              X
+                            </div>
+                          )}
+                          <span>{req.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
 
                   <Form.Item
                     name="confirmPassword"
@@ -334,6 +380,7 @@ const ProfilePage: React.FC = () => {
                       onClick={() => {
                         setShowChangePassword(false);
                         passwordForm.resetFields();
+                        setPasswordValue('');
                       }}
                     >
                       Hủy

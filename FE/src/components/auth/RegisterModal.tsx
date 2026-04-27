@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { registerAPI } from "../../services/authService";
 import { message } from "antd";
 import { Modal, Form, Input, DatePicker, Select } from 'antd';
-import { EyeInvisibleOutlined, EyeOutlined, CloseOutlined } from '@ant-design/icons';
+import { EyeInvisibleOutlined, EyeOutlined, CloseOutlined, CheckCircleFilled } from '@ant-design/icons';
 import logo from '../../assets/myticket_logo.png';
 import dayjs from "dayjs";
 
@@ -14,6 +14,17 @@ interface Props {
 
 const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
   const [form] = Form.useForm();
+  const [passwordValue, setPasswordValue] = useState('');
+
+  // Các quy tắc kiểm tra mật khẩu
+  const passwordRequirements = [
+    { label: "Từ 8 - 32 ký tự", regex: /^.{8,32}$/ },
+    { label: "Bao gồm chữ thường và số", regex: /(?=.*[a-z])(?=.*\d)/ },
+    { label: "Bao gồm ký tự đặc biệt (!, $, @, %,...)", regex: /(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/ },
+    { label: "Có ít nhất 1 ký tự in hoa", regex: /(?=.*[A-Z])/ }
+  ];
+
+  const getRequirementStatus = (regex: RegExp) => regex.test(passwordValue);
 
   // =============================
   // Submit Register
@@ -46,6 +57,7 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
       if (res.status === 201) {
         message.success("Đăng ký thành công!");
         form.resetFields();
+        setPasswordValue('');
         onLoginClick();
       }
     } catch (err: any) {
@@ -56,7 +68,11 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
   return (
     <Modal
       open={open}
-      onCancel={onClose}
+      onCancel={() => {
+        form.resetFields();
+        setPasswordValue('');
+        onClose();
+      }}
       footer={null}
       width={900}
       closeIcon={<CloseOutlined className="text-gray-500" />}
@@ -74,15 +90,24 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
         <div className="w-2/3 p-4">
           <h2 className="text-xl font-semibold text-center mb-6">TẠO TÀI KHOẢN</h2>
           
-          <Form form={form} layout="vertical" onFinish={onFinish}>
+          <Form 
+            form={form} 
+            layout="vertical" 
+            onFinish={onFinish}
+            onValuesChange={(changedValues) => {
+              if (changedValues.password !== undefined) {
+                setPasswordValue(changedValues.password);
+              }
+            }}
+          >
             {/* Personal Information Section */}
             <div className="mb-6">
               <h3 className="font-medium mb-4">Thông tin cá nhân *</h3>
               <div className="grid grid-cols-2 gap-4">
-                <Form.Item name="lastName" rules={[{ required: true }]}>
+                <Form.Item name="lastName" rules={[{ required: true, message: 'Vui lòng nhập họ' }]}>
                   <Input placeholder="Họ và tên lót" />
                 </Form.Item>
-                <Form.Item name="firstName" rules={[{ required: true }]}>
+                <Form.Item name="firstName" rules={[{ required: true, message: 'Vui lòng nhập tên' }]}>
                   <Input placeholder="Tên" />
                 </Form.Item>
               </div>
@@ -106,9 +131,6 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
                 <Form.Item name="phone">
                   <Input placeholder="Số điện thoại" />
                 </Form.Item>
-                {/* <Form.Item name="idCard">
-                  <Input placeholder="Số CCCD" />
-                </Form.Item> */}
               </div>
             </div>
 
@@ -116,18 +138,64 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
             <div className="mb-6">
               <h3 className="font-medium mb-4">Thông tin tài khoản *</h3>
 
-              <Form.Item name="email" rules={[{ required: true, type: 'email' }]}>
+              <Form.Item name="email" rules={[{ required: true, type: 'email', message: 'Vui lòng nhập Email hợp lệ' }]}>
                 <Input placeholder="Địa chỉ Email" />
               </Form.Item>
 
-              <Form.Item name="password" rules={[{ required: true }]}>
+              <Form.Item 
+                name="password" 
+                style={{ marginBottom: 12 }}
+                rules={[
+                  { required: true, message: 'Vui lòng nhập mật khẩu' },
+                  () => ({
+                    validator(_, value) {
+                      if (!value) return Promise.resolve();
+                      const allMet = passwordRequirements.every(req => req.regex.test(value));
+                      if (!allMet) {
+                        return Promise.reject(new Error('Mật khẩu chưa đáp ứng đủ yêu cầu bảo mật'));
+                      }
+                      return Promise.resolve();
+                    },
+                  }),
+                ]}
+              >
                 <Input.Password
                   placeholder="Mật khẩu"
                   iconRender={visible => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
                 />
               </Form.Item>
 
-              <Form.Item name="confirmPassword" rules={[{ required: true }]}>
+              {/* Bảng yêu cầu mật khẩu trực quan */}
+              <div className="mb-4 pl-2">
+                {passwordRequirements.map((req, index) => {
+                  const isMet = getRequirementStatus(req.regex);
+                  return (
+                    <div key={index} className="flex items-center mb-1.5" style={{ color: isMet ? '#52c41a' : '#8c8c8c', fontSize: '13px' }}>
+                      {isMet ? (
+                        <CheckCircleFilled className="text-[#52c41a] mr-2 text-[14px]" />
+                      ) : (
+                        <div className="w-[14px] h-[14px] rounded-full bg-[#bfbfbf] text-white flex items-center justify-center text-[10px] font-bold mr-2">
+                          X
+                        </div>
+                      )}
+                      <span>{req.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Form.Item name="confirmPassword" rules={[
+                  { required: true, message: 'Vui lòng xác nhận mật khẩu' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || getFieldValue('password') === value) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('Mật khẩu xác nhận không khớp'));
+                    },
+                  }),
+                ]}
+              >
                 <Input.Password
                   placeholder="Xác nhận mật khẩu"
                   iconRender={visible => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
@@ -138,7 +206,7 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
             <Form.Item>
               <button
                 type="submit"
-                className="w-full bg-[#23A6F0] text-white py-2 rounded hover:bg-[#1890ff] transition-colors"
+                className="w-full bg-[#23A6F0] text-white py-2 rounded hover:bg-[#1890ff] transition-colors font-medium"
               >
                 Đăng ký
               </button>
@@ -148,8 +216,12 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
               <span className="text-gray-600">Đã có tài khoản? </span>
               <button
                 type="button"
-                onClick={() => { form.resetFields(); onLoginClick(); }}
-                className="text-[#23A6F0] hover:underline"
+                onClick={() => { 
+                  form.resetFields(); 
+                  setPasswordValue('');
+                  onLoginClick(); 
+                }}
+                className="text-[#23A6F0] hover:underline font-medium"
               >
                 Đăng nhập
               </button>

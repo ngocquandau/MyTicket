@@ -1,10 +1,11 @@
-
 import React, { useEffect, useState } from 'react';
 import OrganizerLayout from '../../../layouts/OrganizerLayout';
 import axiosClient from '../../../services/axiosClient';
 import { getAllEventsAPI } from '../../../services/eventService';
-import { Button, Table, Input, message, Image, Tag, Modal, Descriptions, Space, Typography } from 'antd';
-import { EyeOutlined, TeamOutlined, DownloadOutlined } from '@ant-design/icons';
+// Đảm bảo import đúng hàm getEventReviewsAPI từ file API của bạn
+import { getEventReviewsAPI } from '../../../services/reviewService'; 
+import { Button, Table, Input, message, Image, Tag, Modal, Descriptions, Space, Typography, Rate, Avatar, List } from 'antd';
+import { EyeOutlined, TeamOutlined, DownloadOutlined, StarOutlined } from '@ant-design/icons';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { sanitizeRichText, stripRichText } from '../../../utils/richText';
@@ -21,7 +22,6 @@ interface Event {
   location?: {
     address?: string;
   };
-  // Thêm các trường khác nếu cần
 }
 
 interface AttendeeRow {
@@ -38,13 +38,22 @@ interface AttendeeRow {
   purchasedAt: string;
 }
 
-// Hàm lấy organizerId từ localStorage/session hoặc context (giả định đã lưu khi đăng nhập)
+interface Review {
+  _id: string;
+  rating: number;
+  comment: string;
+  user: {
+    _id: string;
+    name: string;
+    avatar?: string;
+  };
+  createdAt: string;
+}
+
 function getOrganizerId(): string | null {
-  // Ví dụ: lưu organizerId vào localStorage sau khi đăng nhập
   return localStorage.getItem('organizerId');
 }
 
-// Giải mã JWT từ localStorage/session và trả về payload (hoặc null nếu không hợp lệ)
 function getUserFromToken(): any | null {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   if (!token) return null;
@@ -52,7 +61,6 @@ function getUserFromToken(): any | null {
     const parts = token.split('.');
     if (parts.length < 2) return null;
     let payload = parts[1];
-    // base64url -> base64
     payload = payload.replace(/-/g, '+').replace(/_/g, '/');
     while (payload.length % 4) {
       payload += '=';
@@ -73,10 +81,18 @@ const EventInforPage: React.FC = () => {
   const [viewOpen, setViewOpen] = useState(false);
   const [selected, setSelected] = useState<Event | null>(null);
   const [tableHeight, setTableHeight] = useState<number>(560);
+  
+  // States cho Attendee
   const [attendeeOpen, setAttendeeOpen] = useState(false);
   const [attendeeLoading, setAttendeeLoading] = useState(false);
   const [attendeeRows, setAttendeeRows] = useState<AttendeeRow[]>([]);
   const [attendeeEvent, setAttendeeEvent] = useState<Event | null>(null);
+
+  // States cho Review
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewEvent, setReviewEvent] = useState<Event | null>(null);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -120,7 +136,6 @@ const EventInforPage: React.FC = () => {
     fetchEvents();
   }, []);
 
-  // compute table height
   useEffect(() => {
     const calc = () => {
       const offset = 240;
@@ -134,6 +149,26 @@ const EventInforPage: React.FC = () => {
 
   const openView = (record: Event) => { setSelected(record); setViewOpen(true); };
   const closeView = () => { setSelected(null); setViewOpen(false); };
+
+  const openReviewModal = async (record: Event) => {
+    setReviewEvent(record);
+    setReviewOpen(true);
+    setReviewLoading(true);
+    try {
+      const data = await getEventReviewsAPI(record._id);
+      setReviews(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      message.error('Không thể tải danh sách đánh giá.');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const calculateAvg = (list: Review[]) => {
+    if (list.length === 0) return 0;
+    const sum = list.reduce((acc, curr) => acc + curr.rating, 0);
+    return (sum / list.length).toFixed(1);
+  };
 
   const getStatusTag = (status?: string) => {
     const normalized = String(status || '').toLowerCase();
@@ -346,11 +381,12 @@ const EventInforPage: React.FC = () => {
     {
       title: 'Action',
       key: 'action',
-      width: 80,
+      width: 120,
       render: (_: any, record: Event) => (
         <Space size={2}>
-          <Button type="text" icon={<EyeOutlined />} style={{ minWidth: 0, paddingInline: 4 }} onClick={() => openView(record)} />
-          <Button type="text" icon={<TeamOutlined />} style={{ minWidth: 0, paddingInline: 4 }} onClick={() => openAttendeeModal(record)} />
+          <Button type="text" title="Xem chi tiết" icon={<EyeOutlined />} style={{ minWidth: 0, paddingInline: 4 }} onClick={() => openView(record)} />
+          <Button type="text" title="Xem đánh giá" icon={<StarOutlined />} style={{ minWidth: 0, paddingInline: 4 }} onClick={() => openReviewModal(record)} />
+          <Button type="text" title="Xem khách hàng" icon={<TeamOutlined />} style={{ minWidth: 0, paddingInline: 4 }} onClick={() => openAttendeeModal(record)} />
         </Space>
       )
     }
@@ -421,6 +457,53 @@ const EventInforPage: React.FC = () => {
               <Descriptions.Item label="Location">{selected.location?.address || (typeof selected.location === 'string' ? selected.location : '—')}</Descriptions.Item>
             </Descriptions>
           )}
+        </Modal>
+
+        {/* Modal Đánh giá sự kiện */}
+        <Modal
+          title={`Đánh giá sự kiện - ${reviewEvent?.title || ''}`}
+          open={reviewOpen}
+          onCancel={() => { setReviewOpen(false); setReviews([]); }}
+          footer={null}
+          width={700}
+          centered
+          destroyOnClose
+        >
+          <div style={{ marginBottom: 20, textAlign: 'center', background: '#fafafa', padding: '16px', borderRadius: '8px' }}>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              {calculateAvg(reviews)} / 5
+            </Typography.Title>
+            <Rate disabled allowHalf value={Number(calculateAvg(reviews))} />
+            <div style={{ color: '#8c8c8c', marginTop: 4 }}>Dựa trên {reviews.length} lượt đánh giá</div>
+          </div>
+
+          <List
+            loading={reviewLoading}
+            itemLayout="horizontal"
+            dataSource={reviews}
+            pagination={{ pageSize: 5, size: 'small' }}
+            renderItem={(item) => (
+              <List.Item>
+                <List.Item.Meta
+                  avatar={<Avatar src={item.user?.avatar}>{item.user?.name?.charAt(0)}</Avatar>}
+                  title={
+                    <Space>
+                      <span style={{ fontWeight: 600 }}>{item.user?.name}</span>
+                      <Rate disabled value={item.rating} style={{ fontSize: 12 }} />
+                      <span style={{ fontSize: 12, color: '#bfbfbf' }}>
+                        {new Date(item.createdAt).toLocaleDateString('vi-VN')}
+                      </span>
+                    </Space>
+                  }
+                  description={
+                    <div style={{ color: '#262626', marginTop: 4 }}>
+                      {item.comment || <i style={{ color: '#bfbfbf' }}>Không có bình luận</i>}
+                    </div>
+                  }
+                />
+              </List.Item>
+            )}
+          />
         </Modal>
 
         <Modal

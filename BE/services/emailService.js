@@ -156,12 +156,6 @@ const renderEmailLayout = ({
                                             Địa chỉ: ${SUPPORT_ADDRESS}<br />
                                             Điện thoại: ${SUPPORT_PHONE}
                                         </div>
-                                        // <div style="margin:14px 0 0;">
-                                        //     ${renderSocialBadge('facebook', '#1877f2')}
-                                        //     ${renderSocialBadge('instagram', '#e1306c')}
-                                        //     ${renderSocialBadge('youtube', '#ff0000')}
-                                        //     ${renderSocialBadge('tiktok', '#111827')}
-                                        // </div>
                                     </td>
                                 </tr>
                             </table>
