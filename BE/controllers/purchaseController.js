@@ -13,6 +13,8 @@ import Ticket from '../models/Ticket.js';
 // Import service gửi email
 import { sendBookingConfirmation } from '../services/emailService.js';
 
+import { scheduleEventReminderEmails } from './emailController.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -104,6 +106,14 @@ export const triggerTicketEmail = async (purchaseId) => {
             ticketEntries,
         });
         
+        await scheduleEventReminderEmails({
+            cusEmail: user.email,
+            cusName: `${user.lastName || ''} ${user.firstName || ''}`.trim(),
+            eventName: event.title,
+            eventDate: event.startDateTime,
+            venue: event.location?.address || 'Xem chi tiết trên ứng dụng'
+        });        
+
         console.log(`[Email] Đã gửi email xác nhận vé cho đơn hàng ${purchaseId}`);
     } catch (error) {
         console.error("[Email Error] Lỗi khi gửi email vé tự động:", error);

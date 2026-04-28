@@ -125,65 +125,56 @@ export const sendEventUpdateController = async (req, res) => {
 
 export const addScheduledEmail = async (req, res) => {
     try {
-        const { cusEmail, cusName, eventName, eventDate, venue } = req.body;
-        console.log("đã vào addScheduledEmail");
+        const totalJobs = await scheduleEventReminderEmails(req.body);
 
-        const runAt = new Date(eventDate); // có kiểm thấy nó về UTC
-        // console.log("Original eventDate:", runAt);
-        const eventDateObj = new Date(runAt.getTime() + 7 * 60 * 60 * 1000); // Chuyển về GMT+7
-
-        const now = new Date();
-
-        const runAt7DaysBefore  = new Date(runAt.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const runAt3DaysBefore  = new Date(runAt.getTime() - 3 * 24 * 60 * 60 * 1000);
-        const runAt1DayBefore   = new Date(runAt.getTime() - 1 * 24 * 60 * 60 * 1000);
-        const runAtTest         = new Date(now.getTime() + 1 * 60 * 1000);
-
-        const jobs = [
-            {
-                reminderType: '7',
-                runAt: runAt7DaysBefore
-            },
-            {
-                reminderType: '3',
-                runAt: runAt3DaysBefore
-            },
-            {
-                reminderType: '1',
-                runAt: runAt1DayBefore
-            },
-            {
-                reminderType: 'test',
-                runAt: runAtTest
-            }
-        ]
-
-        const validJobs = jobs.filter(j => j.runAt > now); // Lọc job quá khứ
-
-        await ScheduledJob.insertMany(
-            validJobs.map(j => ({
-                type: 'email',
-                status: 'pending',
-                runAt: j.runAt,
-                payload: {
-                    reminderType: j.reminderType,
-                    cusEmail,
-                    cusName, 
-                    eventName,
-                    eventDate: eventDateObj,
-                    venue
-                }
-            }))
-        );
-
-        res.status(200).json({ 
-            message: 'Đã lên lịch gửi email nhắc nhở sự kiện', 
-            totalJobs: validJobs.length
+        res.status(200).json({
+            message: 'Đã lên lịch gửi email nhắc nhở sự kiện',
+            totalJobs
         });
     } catch (err) {
-        console.error('Lỗi trong khi lên lịch gửi email nhắc nhở sự kiện:', err);
-        return res.status(500).json({ error: 'Thất bại khi lên lịch gửi email nhắc nhở sự kiện' });
+        res.status(500).json({ error: 'Thất bại khi lên lịch' });
     }
+};
+
+export const scheduleEventReminderEmails = async ({
+    cusEmail,
+    cusName,
+    eventName,
+    eventDate,
+    venue
+}) => {
+    const runAt = new Date(eventDate);
+
+    const eventDateObj = new Date(runAt.getTime() + 7 * 60 * 60 * 1000);
+
+    const now = new Date();
+
+    const jobs = [
+        { reminderType: '7', runAt: new Date(runAt.getTime() - 7 * 86400000) },
+        { reminderType: '3', runAt: new Date(runAt.getTime() - 3 * 86400000) },
+        { reminderType: '1', runAt: new Date(runAt.getTime() - 1 * 86400000) },
+        { reminderType: 'test', runAt: new Date(now.getTime() + 60000) }
+    ];
+
+    const validJobs = jobs.filter(j => j.runAt > now);
+
+    await ScheduledJob.insertMany(
+        validJobs.map(j => ({
+            type: 'email',
+            status: 'pending',
+            runAt: j.runAt,
+            payload: {
+                reminderType: j.reminderType,
+                cusEmail,
+                cusName,
+                eventName,
+                eventDate: eventDateObj,
+                venue
+            }
+        }))
+    );
+
+    return validJobs.length;
 };
 
 export const cronWakeup = async (req, res) => {
