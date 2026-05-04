@@ -209,12 +209,28 @@ const buildMailOptions = ({
 };
 
 // Tạo transporter với Gmail
-const transporter = nodemailer.createTransport({ 
-    service: 'gmail', 
-    auth: { 
-        user: EMAIL,
-        pass: EMAIL_PASSWORD,
-}, });
+// const transporter = nodemailer.createTransport({ 
+//     service: 'gmail', 
+//     auth: { 
+//         user: EMAIL,
+//         pass: EMAIL_PASSWORD,
+// }, });
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+});
 
 export const sendAccountConfirmation = async ({cusEmail, cusName, code}) => {
   try {
