@@ -1,0 +1,161 @@
+<h1 id="bocotestbackendmyticket">Báo cáo Test Backend MyTicket</h1>
+<h2 id="1mctiu">1. Mục tiêu</h2>
+<p>Báo cáo này mô tả toàn bộ quá trình kiểm thử backend MyTicket, gồm:</p>
+<ul>
+<li>Xác thực và phân quyền người dùng.</li>
+<li>Kiểm thử các API quan trọng: user, event, purchase, payment.</li>
+<li>Đảm bảo không có lỗi regression khi thay đổi backend.</li>
+<li>Sử dụng test tự động để đảm bảo tính ổn định của hệ thống.</li>
+</ul>
+<h2 id="2mitrngtest">2. Môi trường test</h2>
+<ul>
+<li>Node.js runtime.</li>
+<li>Test runner: <code>Jest</code>.</li>
+<li>API test với <code>Supertest</code>.</li>
+<li>MongoDB in-memory với <code>mongodb-memory-server</code>.</li>
+<li>Cấu hình ESM cho Jest bằng <code>node --experimental-vm-modules</code>.</li>
+<li>File backend tách riêng: <code>BE/app.js</code> export app, <code>BE/server.js</code> khởi chạy server.</li>
+</ul>
+<h2 id="3cngcvthvinsdng">3. Công cụ và thư viện sử dụng</h2>
+<ul>
+<li><code>jest</code></li>
+<li><code>supertest</code></li>
+<li><code>mongodb-memory-server</code></li>
+<li><code>bcryptjs</code></li>
+<li><code>jsonwebtoken</code></li>
+<li><code>mongoose</code></li>
+</ul>
+<h2 id="4cutrctest">4. Cấu trúc test</h2>
+<ul>
+<li><code>BE/tests/unit/authMiddleware.test.js</code></li>
+<li><code>BE/tests/integration/userRoutes.test.js</code></li>
+<li><code>BE/tests/integration/eventRoutes.test.js</code></li>
+<li><code>BE/tests/integration/purchaseRoutes.test.js</code></li>
+<li><code>BE/tests/integration/paymentRoutes.test.js</code></li>
+<li><code>BE/tests/setup.js</code> (kết nối MongoDB in-memory)</li>
+<li><code>BE/tests/testUtils.js</code> (helper tạo user và lấy token đăng nhập)</li>
+<li><code>BE/tests/test-report.md</code> (báo cáo kết quả)</li>
+</ul>
+<h2 id="5phngphpkimth">5. Phương pháp kiểm thử</h2>
+<ul>
+<li>Unit test cho middleware <code>verifyToken</code> và <code>verifyAdmin</code>.</li>
+<li>Integration test cho các route quan trọng với Express app.</li>
+<li>Dùng MongoDB in-memory để mô phỏng database sạch mỗi lần chạy.</li>
+<li>Không dùng DB thật hoặc các service ngoại vi trong test.</li>
+</ul>
+<h2 id="6testcasechitit">6. Test case chi tiết</h2>
+<h3 id="61middlewarexcthc">6.1. Middleware xác thực</h3>
+<ul>
+<li><code>verifyToken</code> trả về 403 khi không có header Authorization.</li>
+<li><code>verifyToken</code> trả về 401 khi token không hợp lệ.</li>
+<li><code>verifyToken</code> trả về 403 khi user được xác thực nhưng <code>isActive</code> là false.</li>
+<li><code>verifyToken</code> gọi <code>next()</code> khi token hợp lệ và user active.</li>
+<li><code>verifyAdmin</code> trả về 401 khi <code>req.user</code> chưa có.</li>
+<li><code>verifyAdmin</code> trả về 403 khi user không phải admin.</li>
+<li><code>verifyAdmin</code> gọi <code>next()</code> khi user role là <code>admin</code>.</li>
+</ul>
+<h3 id="62apiuser">6.2. API User</h3>
+<ul>
+<li><code>POST /api/user</code>:</li>
+<li>Tạo user mới thành công.</li>
+<li>Trả về status <code>201</code>.</li>
+<li>Response không bao gồm <code>password</code>.</li>
+<li><code>POST /api/user/login</code>:</li>
+<li>Trả về token khi đăng nhập đúng email/password.</li>
+<li>Trả về 401 khi mật khẩu sai.</li>
+<li><code>GET /api/user/profile</code>:</li>
+<li>Truy vấn profile thành công khi token hợp lệ.</li>
+<li><code>GET /api/user</code>:</li>
+<li>Trả về 403 nếu user thường không có quyền admin.</li>
+<li>Trả về danh sách user nếu user admin.</li>
+</ul>
+<h3 id="63apievent">6.3. API Event</h3>
+<ul>
+<li><code>POST /api/event</code>:</li>
+<li>Trả về 403 khi thiếu token.</li>
+<li>Trả về 403 khi user không phải admin.</li>
+<li>Tạo event thành công khi admin hợp lệ.</li>
+<li><code>GET /api/event</code>:</li>
+<li>Trả về danh sách event, ít nhất bao gồm event vừa tạo.</li>
+</ul>
+<h3 id="64apipurchase">6.4. API Purchase</h3>
+<ul>
+<li><code>POST /api/purchases</code>:</li>
+<li>Tạo đơn hàng mới thành công với <code>paymentStatus</code> là <code>pending</code>.</li>
+<li>Kiểm tra luồng mua vé general.</li>
+<li><code>GET /api/purchases/my-tickets</code>:</li>
+<li>Chỉ trả về các đơn hàng có <code>paymentStatus</code> là <code>paid</code>.</li>
+<li>Response có <code>ticketList</code>.</li>
+</ul>
+<h3 id="65apipayment">6.5. API Payment</h3>
+<ul>
+<li><code>POST /api/payment/create-url</code>:</li>
+<li>Trả về 403 khi thiếu token.</li>
+<li>Trả về 404 khi purchaseId không tồn tại.</li>
+<li><code>POST /api/payment/payos-webhook</code>:</li>
+<li>Mô phỏng webhook PayOS.</li>
+<li>Cập nhật đơn hàng từ <code>pending</code> sang <code>paid</code> khi webhook hợp lệ.</li>
+</ul>
+<h2 id="66bngtmtttestcase">6.6. Bảng tóm tắt test case</h2>
+<p>| Test Case | Expected | Actual | Status |
+|-----------|----------|--------|--------|
+| verifyToken thiếu token | 403 | 403 | Passed |
+| verifyToken token không hợp lệ | 401 | 401 | Passed |
+| verifyToken user inactive | 403 | 403 | Passed |
+| verifyToken token hợp lệ | Gọi next() | Gọi next() | Passed |
+| verifyAdmin req.user chưa có | 401 | 401 | Passed |
+| verifyAdmin user không admin | 403 | 403 | Passed |
+| verifyAdmin user admin | Gọi next() | Gọi next() | Passed |
+| POST /api/user tạo user | 201, không trả password | 201, không trả password | Passed |
+| POST /api/user/login đúng | Token | Token | Passed |
+| POST /api/user/login sai | 401 | 401 | Passed |
+| GET /api/user/profile | Profile data | Profile data | Passed |
+| GET /api/user user thường | 403 | 403 | Passed |
+| GET /api/user admin | Danh sách user | Danh sách user | Passed |
+| POST /api/event thiếu token | 403 | 403 | Passed |
+| POST /api/event user không admin | 403 | 403 | Passed |
+| POST /api/event admin | Tạo event | Tạo event | Passed |
+| GET /api/event | Danh sách event | Danh sách event | Passed |
+| POST /api/purchases | Tạo purchase pending | Tạo purchase pending | Passed |
+| GET /api/purchases/my-tickets | Chỉ paid purchases | Chỉ paid purchases | Passed |
+| POST /api/payment/create-url thiếu token | 403 | 403 | Passed |
+| POST /api/payment/create-url purchase không tồn tại | 404 | 404 | Passed |
+| POST /api/payment/payos-webhook | Cập nhật paid | Cập nhật paid | Passed |</p>
+<h2 id="7ktquchytest">7. Kết quả chạy test</h2>
+<ul>
+<li>Tổng số test suite: 5</li>
+<li>Tổng số test case: 22</li>
+<li>Kết quả: <code>22 passed</code></li>
+<li>Lệnh thực thi: <code>cd BE &amp;&amp; npm test</code></li>
+<li>Môi trường chạy: local, sử dụng MongoDB in-memory, không cần cấu hình DB thật.</li>
+</ul>
+<h2 id="8nhngthayichnhthchin">8. Những thay đổi chính đã thực hiện</h2>
+<ul>
+<li>Tách <code>BE/app.js</code> chỉ export Express app.</li>
+<li>Tạo <code>BE/server.js</code> để khởi động kết nối MongoDB và cron job.</li>
+<li>Thêm test middleware cho <code>verifyToken</code> và <code>verifyAdmin</code>.</li>
+<li>Thêm test route cho:</li>
+<li><code>POST /api/user</code>, <code>POST /api/user/login</code>, <code>GET /api/user/profile</code>, <code>GET /api/user</code>.</li>
+<li><code>POST /api/event</code>, <code>GET /api/event</code>.</li>
+<li><code>POST /api/purchases</code>, <code>GET /api/purchases/my-tickets</code>.</li>
+<li><code>POST /api/payment/create-url</code>, <code>POST /api/payment/payos-webhook</code>.</li>
+<li>Sửa controller <code>createUser</code> để trả về user không chứa password.</li>
+<li>Cấu hình <code>tests/setup.js</code> dùng <code>MongoMemoryReplSet</code> cho transaction Mongoose.</li>
+</ul>
+<h2 id="9gibsungchon">9. Gợi ý bổ sung cho đồ án</h2>
+<ul>
+<li>Mở rộng test cho các route quan trọng khác: voucher, review, statistic, email.</li>
+<li>Thêm test cho các workflow thực tế như mua vé có voucher, hủy mua, tải QR.</li>
+<li>Triển khai CI/CD để chạy <code>npm test</code> tự động khi deploy.</li>
+</ul>
+<h2 id="10hnchcatestsuite">10. Hạn chế của test suite</h2>
+<ul>
+<li>Chưa test các service external như PayOS, email service (Nodemailer), Cloudinary, Hugging Face, Gemini AI. Test hiện tại chỉ mock hoặc kiểm tra logic DB/route, không gọi API thật.</li>
+<li>Chưa bao phủ edge cases như: mua vé vượt số lượng, voucher hết hạn, user bị block, lỗi network, timeout.</li>
+<li>Chưa test performance, load testing, hoặc security vulnerabilities (SQL injection, XSS, rate limiting).</li>
+<li>Test chỉ chạy trên môi trường local với MongoDB in-memory; chưa test trên production environment hoặc với DB thật.</li>
+<li>Chưa test cron jobs tự động như cập nhật trạng thái event hoặc hủy vé expired.</li>
+<li>Một số API phụ như review, statistic, image upload chưa được test.</li>
+</ul>
+<h2 id="11ktlun">11. Kết luận</h2>
+<p>Suite test hiện tại đã bao phủ các luồng cốt lõi của backend MyTicket và có thể dùng làm phần "báo cáo test" trong đồ án. Test đã được chạy thành công 22/22 cases, chứng tỏ backend hoạt động ổn định với các kịch bản cơ bản đã kiểm thử.</p>

@@ -88,6 +88,33 @@ Báo cáo này mô tả toàn bộ quá trình kiểm thử backend MyTicket, g�
   - Mô phỏng webhook PayOS.
   - Cập nhật đơn hàng từ `pending` sang `paid` khi webhook hợp lệ.
 
+## 6.6. Bảng tóm tắt test case
+
+| Test Case | Expected | Actual | Status |
+|-----------|----------|--------|--------|
+| verifyToken thiếu token | 403 | 403 | Passed |
+| verifyToken token không hợp lệ | 401 | 401 | Passed |
+| verifyToken user inactive | 403 | 403 | Passed |
+| verifyToken token hợp lệ | Gọi next() | Gọi next() | Passed |
+| verifyAdmin req.user chưa có | 401 | 401 | Passed |
+| verifyAdmin user không admin | 403 | 403 | Passed |
+| verifyAdmin user admin | Gọi next() | Gọi next() | Passed |
+| POST /api/user tạo user | 201, không trả password | 201, không trả password | Passed |
+| POST /api/user/login đúng | Token | Token | Passed |
+| POST /api/user/login sai | 401 | 401 | Passed |
+| GET /api/user/profile | Profile data | Profile data | Passed |
+| GET /api/user user thường | 403 | 403 | Passed |
+| GET /api/user admin | Danh sách user | Danh sách user | Passed |
+| POST /api/event thiếu token | 403 | 403 | Passed |
+| POST /api/event user không admin | 403 | 403 | Passed |
+| POST /api/event admin | Tạo event | Tạo event | Passed |
+| GET /api/event | Danh sách event | Danh sách event | Passed |
+| POST /api/purchases | Tạo purchase pending | Tạo purchase pending | Passed |
+| GET /api/purchases/my-tickets | Chỉ paid purchases | Chỉ paid purchases | Passed |
+| POST /api/payment/create-url thiếu token | 403 | 403 | Passed |
+| POST /api/payment/create-url purchase không tồn tại | 404 | 404 | Passed |
+| POST /api/payment/payos-webhook | Cập nhật paid | Cập nhật paid | Passed |
+
 ## 7. Kết quả chạy test
 - Tổng số test suite: 5
 - Tổng số test case: 22
@@ -112,5 +139,13 @@ Báo cáo này mô tả toàn bộ quá trình kiểm thử backend MyTicket, g�
 - Thêm test cho các workflow thực tế như mua vé có voucher, hủy mua, tải QR.
 - Triển khai CI/CD để chạy `npm test` tự động khi deploy.
 
-## 10. Kết luận
+## 10. Hạn chế của test suite
+- Chưa test các service external như PayOS, email service (Nodemailer), Cloudinary, Hugging Face, Gemini AI. Test hiện tại chỉ mock hoặc kiểm tra logic DB/route, không gọi API thật.
+- Chưa bao phủ edge cases như: mua vé vượt số lượng, voucher hết hạn, user bị block, lỗi network, timeout.
+- Chưa test performance, load testing, hoặc security vulnerabilities (SQL injection, XSS, rate limiting).
+- Test chỉ chạy trên môi trường local với MongoDB in-memory; chưa test trên production environment hoặc với DB thật.
+- Chưa test cron jobs tự động như cập nhật trạng thái event hoặc hủy vé expired.
+- Một số API phụ như review, statistic, image upload chưa được test.
+
+## 11. Kết luận
 Suite test hiện tại đã bao phủ các luồng cốt lõi của backend MyTicket và có thể dùng làm phần "báo cáo test" trong đồ án. Test đã được chạy thành công 22/22 cases, chứng tỏ backend hoạt động ổn định với các kịch bản cơ bản đã kiểm thử.
