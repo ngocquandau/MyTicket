@@ -1,11 +1,7 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors'; 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-// IMPORT TÍNH NĂNG CRON JOB
-import { startTicketCronJob } from './cron/ticketCron.js';
 
 import userRoutes from './routes/userRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
@@ -28,10 +24,6 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-// Cấu hình DNS để tránh lỗi không thể kết nối đến MongoDB
-import dns from "node:dns/promises";
-dns.setServers(["8.8.8.8"]); 
-
 const app = express();
 
 // --- MIDDLEWARE ---
@@ -46,9 +38,6 @@ app.use(cors({
     ],
     credentials: true 
 }));
-
-const MONGO_URI = process.env.MONGO_URI;
-const PORT = process.env.PORT || 10000; 
 
 // --- ROUTES ---
 app.use('/api/user',        userRoutes);
@@ -71,27 +60,4 @@ app.get('/', (req, res) => {
   res.send('MyTicket API is running...');
 });
 
-// --- KHỞI CHẠY SERVER ---
-const startServer = async () => {
-  try {
-    if (!MONGO_URI) {
-      throw new Error('MONGO_URI is missing in BE/.env');
-    }
-
-    await mongoose.connect(MONGO_URI);
-    console.log('MongoDB connected');
-
-    // KÍCH HOẠT CRON JOB NGAY TRƯỚC KHI LẮNG NGHE PORT
-    startTicketCronJob();
-
-    // Lắng nghe trên 0.0.0.0 để tương thích tốt với Render
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  } catch (err) {
-    console.error('MongoDB Connection Error:', err.message);
-    process.exit(1);
-  }
-};
-
-startServer();
+export default app;
