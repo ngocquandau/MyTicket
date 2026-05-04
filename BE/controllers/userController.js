@@ -3,7 +3,7 @@ import User from '../models/User.js';
 import Organizer from '../models/Organizer.js'; 
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { sendNewPassword } from '../services/emailService.js';
+import { sendNewPassword, sendAccountConfirmation } from '../services/emailService.js';
 
 const getSecretKey = () => {
   const secretKey = process.env.SECRET_KEY;
@@ -41,6 +41,16 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
+export const generateOTPWithExpire = (length = 6, minutes = 10) => {
+  const min = Math.pow(10, length - 1);
+  const max = Math.pow(10, length) - 1;
+
+  return {
+    code: Math.floor(min + Math.random() * (max - min + 1)).toString(),
+    expiresAt: Date.now() + minutes * 60 * 1000
+  };
+};
+
 // Tạo user mới
 export const createUser = async (req, res) => {
   try {
@@ -48,15 +58,29 @@ export const createUser = async (req, res) => {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
 
+    const otpData = generateOTPWithExpire();
+
     // Tạo user mới với password đã mã hóa
     const newUser = new User({
       ...req.body,
       password: hashedPassword,
       role: 'user', // luôn là 'user' mặc định
+      emailVerified: false,
+      OTP_CODE: otpData
     });
 
     await newUser.save();
-    res.status(201).json(newUser);
+
+    await sendAccountConfirmation({
+      cusEmail: req.body.email,
+      cusName: [req.body.lastName, req.body.firstName].filter(Boolean).join(' ').trim(),
+      code: otpData.code
+    });
+
+    const responseUser = newUser.toObject();
+    delete responseUser.password;
+    delete responseUser.OTP_CODE;
+    res.status(201).json(responseUser);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

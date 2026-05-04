@@ -45,7 +45,12 @@ const userSchema = new mongoose.Schema({
         }
     },
 
-    isActive:     { type: Boolean, default: true }
+    isActive:     { type: Boolean, default: true },
+    emailVerified: { type: Boolean, default: false },
+    OTP_CODE: {
+        code: { type: String },
+        expiresAt: { type: Date }
+    }
 }, {
     timestamps: true
 });
