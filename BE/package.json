@@ -21,6 +21,7 @@
     "@google/generative-ai": "^0.24.1",
     "@huggingface/hub": "^2.11.0",
     "@payos/node": "^2.0.5",
+    "@sendgrid/mail": "^8.1.6",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",

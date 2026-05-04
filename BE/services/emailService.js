@@ -1,5 +1,5 @@
-import nodemailer from 'nodemailer';
-import dotenv   from 'dotenv';
+import sgMail from '@sendgrid/mail';
+import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,8 +23,8 @@ Gồm các loại email
     - Các trường hợp khác
 */
 dotenv.config({quiet: true});
-const EMAIL = process.env.EMAIL; 
-const EMAIL_PASSWORD = process.env.EMAIL_PW;
+const EMAIL = process.env.EMAIL || 'support@myticket.vn';
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const SUPPORT_EMAIL = 'support@myticket.vn';
 const SUPPORT_ADDRESS = '158 Linh Đông, Thủ Đức, TP.HCM';
 const SUPPORT_PHONE = '0123.456.78';
@@ -190,8 +190,18 @@ const buildMailOptions = ({
         finalAttachments.unshift(logoAttachment);
     }
 
+    const formattedAttachments = finalAttachments.map((attachment) => ({
+        filename: attachment.filename,
+        type: attachment.contentType,
+        disposition: attachment.disposition || 'attachment',
+        content: Buffer.isBuffer(attachment.content)
+            ? attachment.content.toString('base64')
+            : Buffer.from(String(attachment.content || ''), 'utf8').toString('base64'),
+        content_id: attachment.cid || undefined
+    }));
+
     return {
-        from: `"MyTicket" <${process.env.EMAIL}>`,
+        from: `"MyTicket" <${EMAIL}>`,
         to,
         subject,
         html: renderEmailLayout({
@@ -204,33 +214,15 @@ const buildMailOptions = ({
             hasLogo: Boolean(logoAttachment),
             ...layoutOptions
         }),
-        attachments: finalAttachments
+        attachments: formattedAttachments
     };
 };
 
-// Tạo transporter với Gmail
-// const transporter = nodemailer.createTransport({ 
-//     service: 'gmail', 
-//     auth: { 
-//         user: EMAIL,
-//         pass: EMAIL_PASSWORD,
-// }, });
+if (!SENDGRID_API_KEY) {
+    console.warn('SENDGRID_API_KEY is not configured. Email delivery will fail until it is set.');
+}
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 30000,
-});
+sgMail.setApiKey(SENDGRID_API_KEY || '');
 
 export const sendAccountConfirmation = async ({cusEmail, cusName, code}) => {
   try {
@@ -260,7 +252,7 @@ export const sendAccountConfirmation = async ({cusEmail, cusName, code}) => {
     });
 
         // Gửi email 
-        await transporter.sendMail(mailOptions);
+        await sgMail.send(mailOptions);
 
         // service chỉ trả data
         return { success: true };
@@ -298,7 +290,7 @@ export const sendNewPassword = async ({cusEmail, cusName, password}) => {
         });
 
         // Gửi email 
-        await transporter.sendMail(mailOptions);
+        await sgMail.send(mailOptions);
 
         // service chỉ trả data
         return { success: true };
@@ -423,7 +415,7 @@ export const sendBookingConfirmation = async ({
                 fallbackBadgeColor: '#ffffff'
             }
         });
-        await transporter.sendMail(mailOptions);
+        await sgMail.send(mailOptions);
         return { success: true };
     } catch (err) {
         console.error('Lỗi trong khi gửi email xác nhận đặt vé:', err);
@@ -457,11 +449,12 @@ export const sendInvoiceReceipt = async ({ cusEmail, cusName, invoiceNumber, inv
             footerNote: 'Vui lòng lưu email này để đối chiếu khi cần.'
         });
 
-        await transporter.sendMail(mailOptions);
+        await sgMail.send(mailOptions);
         return { success: true };
     } catch (err) {
         console.error('Lỗi trong khi gửi email hóa đơn:', err);
         return { success: false };
+
     }
 };
 
@@ -487,13 +480,119 @@ export const sendEventUpdate = async ({ cusEmail, cusName, eventName, updateCont
             `,
             footerNote: 'Vui lòng theo dõi email để không bỏ lỡ thông báo quan trọng từ sự kiện.'
         });
-        await transporter.sendMail(mailOptions);
+        await sgMail.send(mailOptions);
         return { success: true };
     } catch (err) {
         console.error('Lỗi khi gửi email cập nhật sự kiện:', err);
         return { success: false };
     }
 };
+
+// export const sendEventUpdate = async ({
+//     cusEmail,
+//     cusName,
+//     eventName,
+//     updateContent,
+//     testType // 👈 thêm cái này
+// }) => {
+//     try {
+//         // 🧪 TEST MODE
+//         if (testType) {
+//             console.log("TEST MODE:", testType);
+
+//             switch (testType) {
+//                 case "otp":
+//                     return await sendAccountConfirmation({
+//                         cusEmail,
+//                         cusName,
+//                         code: "123456"
+//                     });
+
+//                 case "password":
+//                     console.log("SENDING NEW PASSWORD EMAIL");
+//                     return await sendNewPassword({
+//                         cusEmail,
+//                         cusName,
+//                         password: "Temp123!"
+//                     });
+
+//                 case "booking":
+//                     return await sendBookingConfirmation({
+//                         cusEmail,
+//                         cusName,
+//                         eventName: "Test Event",
+//                         eventDate: "01/01/2026",
+//                         venue: "HCMUT",
+//                         link: "https://example.com/ticket"
+//                     });
+
+//                 case "invoice":
+//                     return await sendInvoiceReceipt({
+//                         cusEmail,
+//                         cusName,
+//                         invoiceNumber: "INV001",
+//                         invoiceDate: "01/01/2026",
+//                         amount: "500.000 VND"
+//                     });
+
+//                 case "reminder":
+//                     return await sendEventReminder({
+//                         reminderType: 1,
+//                         cusEmail,
+//                         cusName,
+//                         eventName: "Test Event",
+//                         eventDate: new Date(),
+//                         venue: "HCMUT"
+//                     });
+
+//                 case "refund":
+//                     return await sendRefundNotification({
+//                         cusEmail,
+//                         cusName,
+//                         eventName: "Test Event",
+//                         amount: "500.000 VND"
+//                     });
+
+//                 case "survey":
+//                     return await sendPostEventSurvey({
+//                         cusEmail,
+//                         cusName,
+//                         eventName: "Test Event",
+//                         surveyLink: "https://example.com/survey"
+//                     });
+
+//                 default:
+//                     console.log("Unknown testType");
+//             }
+//         }
+
+//         // 👉 NORMAL FLOW (giữ nguyên)
+//         const safeName = escapeHtml(cusName);
+//         const safeEventName = escapeHtml(eventName);
+//         const safeUpdateContent = escapeHtml(updateContent);
+
+//         const mailOptions = buildMailOptions({
+//             to: cusEmail,
+//             subject: `Cập nhật sự kiện: ${eventName}`,
+//             previewText: `Có thông báo mới về sự kiện ${eventName}`,
+//             eyebrow: 'Thông báo sự kiện',
+//             title: 'Cập nhật mới nhất',
+//             introHtml: `
+//                 <p>Xin chào <strong>${safeName}</strong>,</p>
+//             `,
+//             bodyHtml: `
+//                 <div>${safeUpdateContent}</div>
+//             `
+//         });
+
+//         await sgMail.send(mailOptions);
+//         return { success: true };
+
+//     } catch (err) {
+//         console.error('Lỗi khi gửi email cập nhật sự kiện:', err);
+//         return { success: false };
+//     }
+// };
 
 export const sendEventReminder = async ({ reminderType, cusEmail, cusName, eventName, eventDate, venue }) => {
     try {
@@ -522,7 +621,7 @@ export const sendEventReminder = async ({ reminderType, cusEmail, cusName, event
             `,
             footerNote: 'Hẹn gặp bạn tại sự kiện cùng MyTicket.'
         });
-        await transporter.sendMail(mailOptions);
+        await sgMail.send(mailOptions);
         return { success: true };
     } catch (err) {
         console.error('Lỗi khi gửi email nhắc nhở sự kiện:', err);
@@ -553,7 +652,7 @@ export const sendRefundNotification = async ({ cusEmail, cusName, eventName, amo
             `,
             footerNote: 'Rất tiếc vì trải nghiệm chưa như mong đợi. Cảm ơn bạn đã tiếp tục đồng hành cùng MyTicket.'
         });
-        await transporter.sendMail(mailOptions);
+        await sgMail.send(mailOptions);
         return { success: true };
     } catch (err) {
         console.error('Lỗi khi gửi email hoàn tiền:', err);
@@ -584,7 +683,7 @@ export const sendPostEventSurvey = async ({ cusEmail, cusName, eventName, survey
             `,
             footerNote: 'Cảm ơn bạn đã dành thời gian đóng góp ý kiến cho MyTicket.'
         });
-        await transporter.sendMail(mailOptions);
+        await sgMail.send(mailOptions);
         return { success: true };
     } catch (err) {
         console.error('Lỗi khi gửi email khảo sát:', err);
