@@ -24,15 +24,17 @@ export const getMyPurchasesAPI = async () => {
   return res.data;
 };
 
-export const downloadTicketQrImageAPI = async (ticketId: string) => {
-  const res = await axiosClient.get(`${PURCHASE_API_URL}/tickets/${encodeURIComponent(ticketId)}/qr-image`, {
+export const downloadTicketQrImageAPI = async (ticketId: string, ticketRef?: string) => {
+  const query = ticketRef ? `?ref=${encodeURIComponent(ticketRef)}` : '';
+  const res = await axiosClient.get(`${PURCHASE_API_URL}/tickets/${encodeURIComponent(ticketId)}/qr-image${query}`, {
     responseType: 'blob',
   });
   return res.data;
 };
 
-export const getPaidTicketPublicInfoAPI = async (ticketId: string) => {
-  const res = await axiosClient.get(`${PURCHASE_API_URL}/tickets/${encodeURIComponent(ticketId)}/public`);
+export const getPaidTicketPublicInfoAPI = async (ticketId: string, ticketRef?: string) => {
+  const query = ticketRef ? `?ref=${encodeURIComponent(ticketRef)}` : '';
+  const res = await axiosClient.get(`${PURCHASE_API_URL}/tickets/${encodeURIComponent(ticketId)}/public${query}`);
   return res.data;
 };
 

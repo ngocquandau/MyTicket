@@ -6,9 +6,23 @@ declare const process: {
   env: Record<string, string | undefined>;
 };
 
-// Loại bỏ globalThis để Webpack (trên Vercel) nhận diện được biến môi trường.
-// Có sẵn fallback dự phòng link Render để đảm bảo 100% không bị sập kết nối.
-const BASE_URL = process.env.REACT_APP_API_BASE_URL || "https://myticket-backend.onrender.com";
+const resolveBaseUrl = () => {
+  const configuredBaseUrl = process.env.REACT_APP_API_BASE_URL?.trim();
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  if (typeof window !== 'undefined') {
+    const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+    if (isLocalHost) {
+      return `${window.location.protocol}//${window.location.hostname}:10000`;
+    }
+  }
+
+  return 'https://myticket-backend.onrender.com';
+};
+
+const BASE_URL = resolveBaseUrl();
 
 const axiosClient = axios.create({
   baseURL: BASE_URL, 

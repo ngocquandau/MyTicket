@@ -35,6 +35,7 @@ interface PurchaseItem {
     seatType: 'general' | 'reserved';
   };
   ticketList: {
+    _id?: string;
     seat: string;
     ticketId: string;
   }[];
@@ -111,8 +112,8 @@ const MyTicketsPage: React.FC = () => {
       message.warning('Vé này chưa có mã QR. Vui lòng chờ hệ thống đồng bộ mã vé.');
       return;
     }
-    const sampleTicketId = tickets?.[0]?.ticketId;
-    const sampleUrl = sampleTicketId ? buildTicketInfoUrl(sampleTicketId) : '';
+    const sampleTicket = tickets?.[0];
+    const sampleUrl = sampleTicket ? buildTicketInfoUrl(sampleTicket.ticketId, sampleTicket._id) : '';
     if (sampleUrl.includes('localhost') || sampleUrl.includes('127.0.0.1')) {
       message.warning('QR đang trỏ về localhost, điện thoại khác thiết bị sẽ không mở được. Hãy cấu hình lại IP LAN hoặc domain public.');
     }
@@ -152,20 +153,21 @@ const MyTicketsPage: React.FC = () => {
     return eventEndTime !== null ? eventEndTime < currentTime : eventStartTime !== null && eventStartTime < currentTime;
   };
 
-  // Chuẩn hóa URL QR giống luồng email: /ticket-info/:ticketId
-  const buildTicketInfoUrl = (ticketId: string) => {
+  // QR/link mới dùng _id của vé để tránh trùng ticketId giữa nhiều purchase khác nhau.
+  const buildTicketInfoUrl = (ticketId: string, ticketRef?: string) => {
     const configuredFrontendUrl = process.env.REACT_APP_FRONTEND_URL;
     const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
     const fallbackPublicFrontend = 'https://mticket.vercel.app';
     const baseUrl = configuredFrontendUrl || (isLocalhost ? fallbackPublicFrontend : window.location.origin);
     const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
-    return `${normalizedBaseUrl}/ticket-info/${encodeURIComponent(ticketId)}`;
+    const publicToken = (ticketRef || ticketId || '').trim();
+    return `${normalizedBaseUrl}/ticket-info/${encodeURIComponent(publicToken)}`;
   };
 
-  const handleDownloadQr = async (ticketId?: string) => {
+  const handleDownloadQr = async (ticketId?: string, ticketRef?: string) => {
     if (!ticketId) return;
     try {
-      const blob = await downloadTicketQrImageAPI(ticketId);
+      const blob = await downloadTicketQrImageAPI(ticketId, ticketRef);
       const objectUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
@@ -456,12 +458,12 @@ const MyTicketsPage: React.FC = () => {
                             </Tag>
                             
                             <div className="p-2 border-4 border-gray-800 rounded-lg bg-white">
-                                <QRCode value={buildTicketInfoUrl(t.ticketId || 'INVALID')} size={180} />
+                                <QRCode value={buildTicketInfoUrl(t.ticketId || 'INVALID', t._id)} size={180} />
                             </div>
                             <Text copyable className="mt-3 font-mono text-gray-600 bg-gray-100 px-3 py-1 rounded">
                                 {t.ticketId}
                             </Text>
-                            <Button type="default" icon={<DownloadOutlined />} className="mt-3" onClick={() => handleDownloadQr(t.ticketId)}>
+                            <Button type="default" icon={<DownloadOutlined />} className="mt-3" onClick={() => handleDownloadQr(t.ticketId, t._id)}>
                               Tải QR
                             </Button>
                         </div>
