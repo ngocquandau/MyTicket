@@ -4,6 +4,84 @@ import TicketClass from '../models/TicketClass.js'; // Import thêm model Ticket
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+const redactSensitiveText = (value = '') => String(value)
+  .replace(/AIza[0-9A-Za-z\-_]{20,}/g, '[REDACTED_API_KEY]')
+  .replace(/([?&]key=)[^&\s]+/gi, '$1[REDACTED]')
+  .replace(/((?:api[_-]?key|authorization)"?\s*[:=]\s*")([^"]+)(")/gi, '$1[REDACTED]$3');
+
+const sanitizeForLog = (value, depth = 0, seen = new WeakSet()) => {
+  if (value === null || value === undefined) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    return redactSensitiveText(value);
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: redactSensitiveText(value.message || ''),
+      code: value.code || null,
+      status: value.status || null,
+    };
+  }
+
+  if (depth >= 4) {
+    return '[Truncated]';
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeForLog(item, depth + 1, seen));
+  }
+
+  if (typeof value === 'object') {
+    if (seen.has(value)) {
+      return '[Circular]';
+    }
+
+    seen.add(value);
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, sanitizeForLog(item, depth + 1, seen)])
+    );
+  }
+
+  return redactSensitiveText(String(value));
+};
+
+const extractGeminiErrorLog = (error) => {
+  const status = error?.status
+    || error?.response?.status
+    || error?.cause?.status
+    || error?.errorDetails?.status
+    || null;
+
+  const code = error?.code
+    || error?.response?.data?.error?.status
+    || error?.response?.data?.error?.code
+    || error?.cause?.code
+    || null;
+
+  const errorBody = error?.response?.data
+    || error?.errorDetails
+    || error?.details
+    || error?.cause?.response?.data
+    || error?.cause
+    || null;
+
+  return {
+    name: error?.name || 'Error',
+    message: redactSensitiveText(error?.message || 'Unknown Gemini error'),
+    status,
+    code,
+    body: sanitizeForLog(errorBody),
+  };
+};
+
 export const generateChatResponse = async (userMessage) => {
   try {
     // 1. Lấy 30 sự kiện ĐANG MỞ BÁN (status: 'published') gần nhất
@@ -77,7 +155,7 @@ export const generateChatResponse = async (userMessage) => {
     return result.response.text();
 
   } catch (error) {
-    console.error("Lỗi khi gọi Google Gemini API:", error);
+    console.error('[Gemini API Error]', extractGeminiErrorLog(error));
     throw new Error("Không thể xử lý yêu cầu AI lúc này.");
   }
 };
