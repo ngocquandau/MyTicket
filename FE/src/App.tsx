@@ -26,6 +26,7 @@ import OrganizerMessagesPage from './pages/organizer/MessagesPage';
 import OrganizerSettingPage from './pages/organizer/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AUTH_CHANGE_EVENT, getUserRole } from './utils/auth';
+import ScrollToTop from './components/ScrollToTop';
 
 const App: React.FC = () => {
   const [, setAuthVersion] = React.useState(0);
@@ -55,6 +56,7 @@ const App: React.FC = () => {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={role && role !== 'user' ? <Navigate to={roleHome} replace /> : <HomePage />} />
