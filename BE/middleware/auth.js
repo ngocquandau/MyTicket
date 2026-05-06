@@ -23,6 +23,11 @@ export const verifyToken = async (req, res, next) => {
     if (!user || !user.isActive) {
       return res.status(403).json({ error: 'Tài khoản chưa hoạt động hoặc đã đăng xuất' });
     }
+
+    if (!user.emailVerified) {
+      return res.status(403).json({ error: 'Email chưa được xác thực' });
+    }
+
     req.user = decoded;
     next();
   } catch (err) {

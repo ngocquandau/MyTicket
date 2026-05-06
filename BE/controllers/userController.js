@@ -265,3 +265,77 @@ export const getNewPassword = async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 };
+
+// Verify OTP
+export const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email và OTP là bắt buộc' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'Email không tồn tại' });
+    }
+
+    // Kiểm tra OTP
+    if (!user.OTP_CODE || !user.OTP_CODE.code) {
+      return res.status(400).json({ error: 'OTP chưa được gửi' });
+    }
+
+    // Kiểm tra OTP hết hạn
+    if (Date.now() > user.OTP_CODE.expiresAt) {
+      return res.status(400).json({ error: 'OTP đã hết hạn' });
+    }
+
+    // Kiểm tra OTP khớp
+    if (user.OTP_CODE.code !== otp.toString()) {
+      return res.status(400).json({ error: 'OTP không chính xác' });
+    }
+
+    // Update emailVerified = true, xóa OTP
+    user.emailVerified = true;
+    user.OTP_CODE = null;
+    await user.save();
+
+    res.status(200).json({ message: 'Email xác thực thành công' });
+  } catch (err) {
+    console.error('Error in verifyOTP:', err);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+};
+
+// Resend OTP
+export const resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email là bắt buộc' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'Email không tồn tại' });
+    }
+
+    // Tạo OTP mới
+    const otpData = generateOTPWithExpire();
+    user.OTP_CODE = otpData;
+    await user.save();
+
+    // Gửi email OTP
+    await sendAccountConfirmation({
+      cusEmail: email,
+      cusName: [user.lastName, user.firstName].filter(Boolean).join(' ').trim(),
+      code: otpData.code
+    });
+
+    res.status(200).json({ message: 'OTP mới đã được gửi', expiresAt: otpData.expiresAt });
+  } catch (err) {
+    console.error('Error in resendOTP:', err);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+};

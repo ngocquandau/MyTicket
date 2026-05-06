@@ -8,7 +8,9 @@ import {
   loginUser,
   logoutUser,
   getMyOrganizations,
-  getNewPassword
+  getNewPassword,
+  verifyOTP,
+  resendOTP
 } from '../controllers/userController.js';
 
 import { verifyAdmin, verifyToken } from '../middleware/auth.js';
@@ -28,6 +30,8 @@ router.delete ('/:id',      verifyToken, verifyAdmin, deleteUser);
 
 router.post   ('/login',    loginUser);
 router.post   ('/logout',   verifyToken, logoutUser);
+router.post   ('/verify-otp', verifyOTP);
+router.post   ('/resend-otp', resendOTP);
 
 router.post('/forgot-password', getNewPassword); 
 
