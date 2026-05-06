@@ -116,8 +116,8 @@ const MyReviewsPage: React.FC = () => {
           ) : pastEvents.length === 0 ? (
             <div className="flex flex-col items-center justify-center bg-white rounded-xl shadow-sm p-12 min-h-[400px]">
               <Empty description={<span className="text-gray-500 text-lg">Bạn chưa có sự kiện nào đã kết thúc để đánh giá</span>} />
-              <Button type="default" size="large" onClick={() => navigate('/purchase-history')} className="mt-6">
-                Quay lại Lịch sử mua vé
+              <Button type="default" size="large" onClick={() => navigate('/my-tickets')} className="mt-6">
+                Quay về Vé của tôi
               </Button>
             </div>
           ) : (
