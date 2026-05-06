@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getToken, removeToken } from "../utils/auth";
+import { message } from "antd";
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -30,10 +31,18 @@ axiosClient.interceptors.request.use((config) => {
 axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    const status = error.response?.status;
+    const errorMessage = error.response?.data?.error || "Có lỗi xảy ra";
+
+    if (status === 401) {
       removeToken();
+      message.error("Token hết hạn hoặc không hợp lệ, vui lòng đăng nhập lại");
       console.error("Token hết hạn hoặc không hợp lệ");
+    } else if (status === 403) {
+      message.error(errorMessage);
+      console.error("Lỗi 403:", errorMessage);
     }
+    
     return Promise.reject(error);
   }
 );
