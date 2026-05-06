@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input, Button, Spin } from 'antd';
 import { SendOutlined, CloseOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import axiosClient from '../../services/axiosClient';
 
 // --- IMPORT ICON TỪ ASSETS ---
 import iconChat from '../../assets/iconchat.png';
@@ -54,9 +54,7 @@ const AIChatBot: React.FC = () => {
     setIsAiTyping(true);
 
     try {
-      // 2. GỌI API ĐẾN BACKEND NODE.JS
-      const apiUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000';
-      const response = await axios.post(`${apiUrl}/api/chat`, { message: userText });      
+      const response = await axiosClient.post('/api/chat', { message: userText });
       const aiResponseText = response.data.reply;
 
       // 3. Thêm câu trả lời của AI vào giao diện
