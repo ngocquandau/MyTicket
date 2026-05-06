@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, Spin, Typography, Tag, Result, Button } from 'antd';
 import { CalendarOutlined, CheckCircleFilled, CreditCardOutlined, EnvironmentOutlined, IdcardOutlined, QrcodeOutlined, TagOutlined } from '@ant-design/icons';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { getPaidTicketPublicInfoAPI } from '../../../services/purchaseService';
 import logo from '../../../assets/myticket_logo.png';
 import Barcode from 'react-barcode';
@@ -10,6 +10,7 @@ const { Title, Text } = Typography;
 
 const TicketInfoPage: React.FC = () => {
   const { ticketId = '' } = useParams();
+  const location = useLocation();
   const [loading, setLoading] = React.useState(true);
   const [data, setData] = React.useState<any>(null);
   const [error, setError] = React.useState('');
@@ -19,7 +20,8 @@ const TicketInfoPage: React.FC = () => {
       try {
         setLoading(true);
         setError('');
-        const res = await getPaidTicketPublicInfoAPI(ticketId);
+        const ticketRef = new URLSearchParams(location.search).get('ref') || undefined;
+        const res = await getPaidTicketPublicInfoAPI(ticketId, ticketRef);
         setData(res);
       } catch (err: any) {
         const msg = err?.response?.data?.error || 'Không thể xác thực thông tin vé';
@@ -35,7 +37,7 @@ const TicketInfoPage: React.FC = () => {
       setLoading(false);
       setError('Mã vé không hợp lệ');
     }
-  }, [ticketId]);
+  }, [location.search, ticketId]);
 
   if (loading) {
     return (

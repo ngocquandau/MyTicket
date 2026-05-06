@@ -42,17 +42,65 @@ const getWatermarkLogoDataUri = () => {
     }
 };
 
-const getFrontendBaseUrl = () => process.env.FRONTEND_URL || 'http://localhost:3000';
-const buildTicketInfoUrl = (ticketId) => `${getFrontendBaseUrl()}/ticket-info/${encodeURIComponent(ticketId)}`;
-const buildTicketQrAttachment = async (ticketId) => ({
-    cid: `ticket-qr-${ticketId}@myticket`,
-    filename: `ticket-${ticketId}.png`,
-    content: await QRCode.toBuffer(buildTicketInfoUrl(ticketId), {
+const DEFAULT_FRONTEND_URL = 'https://mticket.vercel.app';
+const getFrontendBaseUrl = () => (process.env.FRONTEND_URL || DEFAULT_FRONTEND_URL).replace(/\/$/, '');
+const sanitizeTicketToken = (value = '') => {
+    const normalized = String(value || '')
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
+    return normalized || 'ticket';
+};
+
+const buildTicketPublicToken = (ticketId, ticketRef) => String(ticketRef || ticketId || '').trim();
+
+const buildTicketInfoUrl = (ticketId, ticketRef) => (
+    `${getFrontendBaseUrl()}/ticket-info/${encodeURIComponent(buildTicketPublicToken(ticketId, ticketRef))}`
+);
+
+const buildTicketQrAttachment = async ({ ticketId, ticketRef }) => {
+    const safeToken = sanitizeTicketToken(ticketRef || ticketId);
+
+    return {
+    cid: `ticket-qr-${safeToken}@myticket`,
+    filename: `ticket-${safeToken}.png`,
+    content: await QRCode.toBuffer(buildTicketInfoUrl(ticketId, ticketRef), {
         type: 'png',
         width: 280,
         margin: 1,
     }),
-});
+    };
+};
+
+const resolveTicketCandidates = async ({ ticketToken, ticketRef, populate = [] }) => {
+    const findTickets = (query) => Ticket.find(query).populate(populate).lean();
+
+    if (ticketRef && mongoose.Types.ObjectId.isValid(ticketRef)) {
+        const ticketsByRef = await findTickets({ _id: ticketRef });
+        if (ticketsByRef.length) {
+            return ticketsByRef;
+        }
+    }
+
+    if (ticketToken && mongoose.Types.ObjectId.isValid(ticketToken)) {
+        const ticketsById = await findTickets({ _id: ticketToken });
+        if (ticketsById.length) {
+            return ticketsById;
+        }
+    }
+
+    if (!ticketToken) {
+        return [];
+    }
+
+    return findTickets({ ticketId: ticketToken });
+};
+
+const pickPaidTicket = (tickets = []) => (
+    tickets.find((ticket) => ticket?.purchase?.paymentStatus === 'paid') || tickets[0] || null
+);
 
 // ==========================================
 // HÀM HELPER TỰ ĐỘNG GỬI EMAIL XÁC NHẬN VÉ
@@ -78,12 +126,15 @@ export const triggerTicketEmail = async (purchaseId) => {
             linkedTickets
                 .filter((ticket) => ticket?.ticketId)
                 .map(async (ticket) => {
-                    const qrAttachment = await buildTicketQrAttachment(ticket.ticketId);
+                    const qrAttachment = await buildTicketQrAttachment({
+                        ticketId: ticket.ticketId,
+                        ticketRef: ticket._id,
+                    });
 
                     return {
                         ticketId: ticket.ticketId,
                         seat: ticket.seat || 'Vé tự do',
-                        link: buildTicketInfoUrl(ticket.ticketId),
+                        link: buildTicketInfoUrl(ticket.ticketId, ticket._id),
                         qrCid: qrAttachment.cid,
                         qrFilename: qrAttachment.filename,
                         qrContent: qrAttachment.content,
@@ -366,13 +417,23 @@ export const getMyPurchases = async (req, res) => {
 
 export const downloadTicketQrImage = async (req, res) => {
     try {
-        const { ticketId } = req.params;
+        const { ticketId: ticketToken } = req.params;
+        const { ref: ticketRef } = req.query;
         const requesterId = req.user?.id;
         const requesterRole = req.user?.role;
 
-        const ticket = await Ticket.findOne({ ticketId })
-            .populate('purchase', 'user paymentStatus')
-            .lean();
+        const tickets = await resolveTicketCandidates({
+            ticketToken,
+            ticketRef,
+            populate: {
+                path: 'purchase',
+                select: 'user paymentStatus'
+            }
+        });
+
+        const ticket = requesterRole === 'admin'
+            ? pickPaidTicket(tickets)
+            : tickets.find((item) => item?.purchase?.paymentStatus === 'paid' && String(item?.purchase?.user || '') === requesterId) || pickPaidTicket(tickets);
 
         if (!ticket) {
             return res.status(404).json({ error: 'Không tìm thấy vé' });
@@ -387,7 +448,7 @@ export const downloadTicketQrImage = async (req, res) => {
             return res.status(403).json({ error: 'Bạn không có quyền tải QR của vé này' });
         }
 
-        const qrValue = buildTicketInfoUrl(ticket.ticketId);
+        const qrValue = buildTicketInfoUrl(ticket.ticketId, ticket._id);
 
         const imageBuffer = await QRCode.toBuffer(qrValue, {
             type: 'png',
@@ -406,26 +467,33 @@ export const downloadTicketQrImage = async (req, res) => {
 
 export const getPaidTicketPublicInfo = async (req, res) => {
     try {
-        const { ticketId } = req.params;
+        const { ticketId: ticketToken } = req.params;
+        const { ref: ticketRef } = req.query;
 
-        const ticket = await Ticket.findOne({ ticketId })
-            .populate({
-                path: 'ticketClass',
-                select: 'name price seatType event',
-                populate: {
-                    path: 'event',
-                    select: 'title startDateTime endDateTime location posterURL status'
+        const tickets = await resolveTicketCandidates({
+            ticketToken,
+            ticketRef,
+            populate: [
+                {
+                    path: 'ticketClass',
+                    select: 'name price seatType event',
+                    populate: {
+                        path: 'event',
+                        select: 'title startDateTime endDateTime location posterURL status'
+                    }
+                },
+                {
+                    path: 'purchase',
+                    select: 'paymentStatus createdAt purchaseDate quantity totalAmount paymentMethod user',
+                    populate: {
+                        path: 'user',
+                        select: 'firstName lastName email phoneNumber'
+                    }
                 }
-            })
-            .populate({
-                path: 'purchase',
-                select: 'paymentStatus createdAt purchaseDate quantity totalAmount paymentMethod user',
-                populate: {
-                    path: 'user',
-                    select: 'firstName lastName email phoneNumber'
-                }
-            })
-            .lean();
+            ]
+        });
+
+        const ticket = pickPaidTicket(tickets);
 
         if (!ticket) {
             return res.status(404).json({ error: 'Không tìm thấy vé' });
@@ -468,26 +536,33 @@ export const getPaidTicketPublicInfo = async (req, res) => {
 
 export const getPaidTicketPublicImage = async (req, res) => {
     try {
-        const { ticketId } = req.params;
+        const { ticketId: ticketToken } = req.params;
+        const { ref: ticketRef } = req.query;
 
-        const ticket = await Ticket.findOne({ ticketId })
-            .populate({
-                path: 'ticketClass',
-                select: 'name seatType event',
-                populate: {
-                    path: 'event',
-                    select: 'title startDateTime location'
+        const tickets = await resolveTicketCandidates({
+            ticketToken,
+            ticketRef,
+            populate: [
+                {
+                    path: 'ticketClass',
+                    select: 'name seatType event',
+                    populate: {
+                        path: 'event',
+                        select: 'title startDateTime location'
+                    }
+                },
+                {
+                    path: 'purchase',
+                    select: 'paymentStatus totalAmount purchaseDate createdAt user',
+                    populate: {
+                        path: 'user',
+                        select: 'firstName lastName email phoneNumber'
+                    }
                 }
-            })
-            .populate({
-                path: 'purchase',
-                select: 'paymentStatus totalAmount purchaseDate createdAt user',
-                populate: {
-                    path: 'user',
-                    select: 'firstName lastName email phoneNumber'
-                }
-            })
-            .lean();
+            ]
+        });
+
+        const ticket = pickPaidTicket(tickets);
 
         if (!ticket || !ticket.purchase || ticket.purchase.paymentStatus !== 'paid') {
             return res.status(404).send('Ticket not found or not paid');
