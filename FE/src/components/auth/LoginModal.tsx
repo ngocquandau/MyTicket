@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { forgotPasswordAPI, loginAPI } from "../../services/authService";
 import { saveToken, getUserRole, getUserFromToken } from "../../utils/auth";
-import { getAllOrganizersAPI } from "../../services/organizerService";
+import axiosClient from "../../services/axiosClient";
 import { message } from "antd";
 import { Modal, Form, Input } from 'antd';
 import { EyeInvisibleOutlined, EyeOutlined, CloseOutlined } from '@ant-design/icons';
@@ -37,14 +37,10 @@ const LoginModal: React.FC<Props> = ({ open, onClose, onRegisterClick, onLoginSu
         // Nếu là organizer thì cố gắng lấy organizerId và lưu vào localStorage
         if (role === 'organizer') {
           try {
-            const payload = getUserFromToken();
-            const userId = payload?.id;
-            if (userId) {
-              const organizers = await getAllOrganizersAPI();
-              const found = organizers.find((o: any) => String(o.user) === String(userId));
-              if (found) {
-                localStorage.setItem('organizerId', found._id);
-              }
+            const orgRes = await axiosClient.get('/api/organizer/me');
+            const organizerId = orgRes.data?._id;
+            if (organizerId) {
+              localStorage.setItem('organizerId', organizerId);
             }
           } catch (e) {
             // Không bắt buộc — nếu không tìm được organizerId thì vẫn tiếp tục đăng nhập

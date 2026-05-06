@@ -45,6 +45,10 @@ const CheckoutPage: React.FC = () => {
   const [discount, setDiscount] = React.useState(0);
 
   React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
+  React.useEffect(() => {
     if (!event || !ticket) {
       message.error("Dữ liệu vé không hợp lệ, vui lòng chọn lại.");
       navigate('/', { replace: true });

@@ -93,6 +93,7 @@ const EventInforPage: React.FC = () => {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewEvent, setReviewEvent] = useState<Event | null>(null);
+  const [reviewStarFilter, setReviewStarFilter] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -154,6 +155,7 @@ const EventInforPage: React.FC = () => {
     setReviewEvent(record);
     setReviewOpen(true);
     setReviewLoading(true);
+    setReviewStarFilter(null);
     try {
       const data = await getEventReviewsAPI(record._id);
       setReviews(Array.isArray(data) ? data : []);
@@ -463,13 +465,13 @@ const EventInforPage: React.FC = () => {
         <Modal
           title={`Đánh giá sự kiện - ${reviewEvent?.title || ''}`}
           open={reviewOpen}
-          onCancel={() => { setReviewOpen(false); setReviews([]); }}
+          onCancel={() => { setReviewOpen(false); setReviews([]); setReviewStarFilter(null); }}
           footer={null}
           width={700}
           centered
           destroyOnClose
         >
-          <div style={{ marginBottom: 20, textAlign: 'center', background: '#fafafa', padding: '16px', borderRadius: '8px' }}>
+          <div style={{ marginBottom: 16, textAlign: 'center', background: '#fafafa', padding: '16px', borderRadius: '8px' }}>
             <Typography.Title level={4} style={{ margin: 0 }}>
               {calculateAvg(reviews)} / 5
             </Typography.Title>
@@ -477,33 +479,67 @@ const EventInforPage: React.FC = () => {
             <div style={{ color: '#8c8c8c', marginTop: 4 }}>Dựa trên {reviews.length} lượt đánh giá</div>
           </div>
 
-          <List
-            loading={reviewLoading}
-            itemLayout="horizontal"
-            dataSource={reviews}
-            pagination={{ pageSize: 5, size: 'small' }}
-            renderItem={(item) => (
-              <List.Item>
-                <List.Item.Meta
-                  avatar={<Avatar src={item.user?.avatar}>{item.user?.name?.charAt(0)}</Avatar>}
-                  title={
-                    <Space>
-                      <span style={{ fontWeight: 600 }}>{item.user?.name}</span>
-                      <Rate disabled value={item.rating} style={{ fontSize: 12 }} />
-                      <span style={{ fontSize: 12, color: '#bfbfbf' }}>
-                        {new Date(item.createdAt).toLocaleDateString('vi-VN')}
-                      </span>
-                    </Space>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+            <Button
+              size="small"
+              onClick={() => setReviewStarFilter(null)}
+              style={
+                reviewStarFilter === null
+                  ? { backgroundColor: '#faad14', borderColor: '#faad14', color: '#fff', fontWeight: 600 }
+                  : { backgroundColor: '#fff7e6', borderColor: '#ffd666', color: '#d48806', fontWeight: 500 }
+              }
+            >
+              Tất cả ({reviews.length})
+            </Button>
+            {[5, 4, 3, 2, 1].map((star) => {
+              const count = reviews.filter((r) => r.rating === star).length;
+              const isActive = reviewStarFilter === star;
+              return (
+                <Button
+                  key={star}
+                  size="small"
+                  onClick={() => setReviewStarFilter(isActive ? null : star)}
+                  style={
+                    isActive
+                      ? { backgroundColor: '#faad14', borderColor: '#faad14', color: '#fff', fontWeight: 600 }
+                      : { backgroundColor: '#fff7e6', borderColor: '#ffd666', color: '#d48806', fontWeight: 500 }
                   }
-                  description={
-                    <div style={{ color: '#262626', marginTop: 4 }}>
-                      {item.comment || <i style={{ color: '#bfbfbf' }}>Không có bình luận</i>}
-                    </div>
-                  }
-                />
-              </List.Item>
-            )}
-          />
+                >
+                  {'★'.repeat(star)} ({count})
+                </Button>
+              );
+            })}
+          </div>
+
+          <div style={{ height: 380, overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: 8, padding: '0 12px' }}>
+            <List
+              loading={reviewLoading}
+              itemLayout="horizontal"
+              dataSource={reviewStarFilter === null ? reviews : reviews.filter((r) => r.rating === reviewStarFilter)}
+              locale={{ emptyText: 'Không có đánh giá nào' }}
+              renderItem={(item) => (
+                <List.Item>
+                  <List.Item.Meta
+                    avatar={<Avatar src={item.user?.avatar}>{item.user?.name?.charAt(0)}</Avatar>}
+                    title={
+                      <Space>
+                        <span style={{ fontWeight: 600 }}>{item.user?.name}</span>
+                        <Rate disabled value={item.rating} style={{ fontSize: 12 }} />
+                        <span style={{ fontSize: 12, color: '#bfbfbf' }}>
+                          {new Date(item.createdAt).toLocaleDateString('vi-VN')}
+                        </span>
+                      </Space>
+                    }
+                    description={
+                      <div style={{ color: '#262626', marginTop: 4 }}>
+                        {item.comment || <i style={{ color: '#bfbfbf' }}>Không có bình luận</i>}
+                      </div>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          </div>
         </Modal>
 
         <Modal

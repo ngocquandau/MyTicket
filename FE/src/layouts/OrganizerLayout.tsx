@@ -36,7 +36,6 @@ const OrganizerLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const menuItems = [
     { label: 'Statistical Data', icon: <DollarOutlined />, path: '/organizer/statistics' },
     { label: 'Event Information', icon: <LayoutOutlined />, path: '/organizer/events' },
-    { label: 'Messages', icon: <MessageOutlined />, path: '/organizer/messages' },
     { label: 'Profile', icon: <SettingOutlined />, path: '/organizer/profile' },
   ];
 

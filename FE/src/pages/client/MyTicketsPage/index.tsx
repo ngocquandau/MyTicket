@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Typography, Empty, Button, Card, Tag, Spin, Row, Col, Modal, QRCode, message, Input, Pagination } from 'antd';
-import { CalendarOutlined, EnvironmentOutlined, QrcodeOutlined, DownloadOutlined, SearchOutlined, StarOutlined } from '@ant-design/icons';
+import { Typography, Empty, Button, Card, Tag, Spin, Row, Col, Modal, QRCode, message, Input, Pagination, Select } from 'antd';
+import { CalendarOutlined, ClockCircleOutlined, EnvironmentOutlined, QrcodeOutlined, DownloadOutlined, SearchOutlined, StarOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import ClientLayout from '../../../layouts/ClientLayout';
 import { getAllEventsAPI } from '../../../services/eventService';
@@ -10,6 +10,8 @@ import { handleAuthError } from '../../../utils/httpError';
 const { Title, Text } = Typography;
 const PAGE_SIZE = 4;
 type TicketTimeFilter = 'upcoming' | 'ended';
+type TicketSortField = 'purchaseDate' | 'eventDate';
+type TicketSortOrder = 'desc' | 'asc';
 
 // Gộp chung Interface đầy đủ nhất
 interface PurchaseItem {
@@ -45,6 +47,8 @@ const MyTicketsPage: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [timeFilter, setTimeFilter] = useState<TicketTimeFilter>('upcoming');
+  const [sortField, setSortField] = useState<TicketSortField>('purchaseDate');
+  const [sortOrder, setSortOrder] = useState<TicketSortOrder>('desc');
   
   // State cho Modal QR
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -108,7 +112,7 @@ const MyTicketsPage: React.FC = () => {
       return;
     }
     const sampleTicketId = tickets?.[0]?.ticketId;
-    const sampleUrl = sampleTicketId ? buildTicketHtmlUrl(sampleTicketId) : '';
+    const sampleUrl = sampleTicketId ? buildTicketInfoUrl(sampleTicketId) : '';
     if (sampleUrl.includes('localhost') || sampleUrl.includes('127.0.0.1')) {
       message.warning('QR đang trỏ về localhost, điện thoại khác thiết bị sẽ không mở được. Hãy cấu hình lại IP LAN hoặc domain public.');
     }
@@ -148,11 +152,14 @@ const MyTicketsPage: React.FC = () => {
     return eventEndTime !== null ? eventEndTime < currentTime : eventStartTime !== null && eventStartTime < currentTime;
   };
 
-  // Sử dụng logic tạo URL mã QR trỏ về API Backend xuất vé HTML (Từ bản 2)
-  const buildTicketHtmlUrl = (ticketId: string) => {
-    const runtimeBase = `${window.location.protocol}//${window.location.hostname}:3000`;
-    const apiBase = (window as any).REACT_APP_PUBLIC_API_BASE_URL || (window as any).REACT_APP_API_BASE_URL || runtimeBase;
-    return `${apiBase}/api/purchases/tickets/${encodeURIComponent(ticketId)}/public-image`;
+  // Chuẩn hóa URL QR giống luồng email: /ticket-info/:ticketId
+  const buildTicketInfoUrl = (ticketId: string) => {
+    const configuredFrontendUrl = process.env.REACT_APP_FRONTEND_URL;
+    const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+    const fallbackPublicFrontend = 'https://mticket.vercel.app';
+    const baseUrl = configuredFrontendUrl || (isLocalhost ? fallbackPublicFrontend : window.location.origin);
+    const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+    return `${normalizedBaseUrl}/ticket-info/${encodeURIComponent(ticketId)}`;
   };
 
   const handleDownloadQr = async (ticketId?: string) => {
@@ -195,19 +202,20 @@ const MyTicketsPage: React.FC = () => {
   });
 
   filteredPurchases.sort((a, b) => {
-    const aTime = new Date(a.event?.startDateTime || 0).getTime();
-    const bTime = new Date(b.event?.startDateTime || 0).getTime();
+    const aEventTime = new Date(a.event?.startDateTime || 0).getTime();
+    const bEventTime = new Date(b.event?.startDateTime || 0).getTime();
+    const aPurchaseTime = new Date(a.createdAt || 0).getTime();
+    const bPurchaseTime = new Date(b.createdAt || 0).getTime();
 
-    if (timeFilter === 'ended') {
-      return bTime - aTime;
-    }
+    const aValue = sortField === 'eventDate' ? aEventTime : aPurchaseTime;
+    const bValue = sortField === 'eventDate' ? bEventTime : bPurchaseTime;
 
-    return aTime - bTime;
+    return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
   });
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [normalizedKeyword, timeFilter]);
+  }, [normalizedKeyword, timeFilter, sortField, sortOrder]);
 
   const paginatedPurchases = filteredPurchases.slice(
     (currentPage - 1) * PAGE_SIZE,
@@ -222,18 +230,45 @@ const MyTicketsPage: React.FC = () => {
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
               <QrcodeOutlined className="text-2xl text-[#23A6F0]" />
-              <Title level={2} className="!text-[#23A6F0] !m-0">Danh sách vé đã thanh toán thành công</Title>
+              <Title level={2} className="!text-[#23A6F0] !m-0">VÉ ĐÃ THANH TOÁN THÀNH CÔNG</Title>
             </div>
             {!loading && purchases.length > 0 && (
-              <div className="w-full lg:w-[360px] lg:flex-shrink-0">
-                <Input
-                  allowClear
+              <div className="w-full lg:w-[650px] lg:flex-shrink-0 flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <Input
+                    allowClear
+                    size="large"
+                    value={searchKeyword}
+                    prefix={<SearchOutlined className="text-gray-400" />}
+                    placeholder="Nhập tên sự kiện"
+                    className="rounded-lg w-full"
+                    onChange={(event) => setSearchKeyword(event.target.value)}
+                  />
+                </div>
+                <Select
                   size="large"
-                  value={searchKeyword}
-                  prefix={<SearchOutlined className="text-gray-400" />}
-                  placeholder="Nhập tên sự kiện"
-                  className="rounded-lg"
-                  onChange={(event) => setSearchKeyword(event.target.value)}
+                  value={sortField}
+                  className="min-w-[150px]"
+                  onChange={(value) => setSortField(value)}
+                  options={[
+                    { value: 'purchaseDate', label: 'Thời gian mua vé' },
+                    { value: 'eventDate', label: 'Thời gian diễn ra' },
+                  ]}
+                />
+                <Select
+                  size="large"
+                  value={sortOrder}
+                  className="min-w-[100px]"
+                  onChange={(value) => setSortOrder(value)}
+                  options={sortField === 'purchaseDate'
+                    ? [
+                        { value: 'desc', label: 'Mới -> Cũ' },
+                        { value: 'asc', label: 'Cũ -> Mới' },
+                      ]
+                    : [
+                        { value: 'asc', label: 'Sớm -> Muộn' },
+                        { value: 'desc', label: 'Muộn -> Sớm' },
+                      ]}
                 />
               </div>
             )}
@@ -346,6 +381,11 @@ const MyTicketsPage: React.FC = () => {
                                    <span className="text-gray-500 mr-2 text-sm">Tổng tiền:</span>
                                    <span className="font-bold text-[#E04646] text-sm">{formatCurrency(item.totalAmount)}</span>
                                 </div>
+                                <div className="flex items-center gap-1">
+                                   <ClockCircleOutlined className="text-[#23A6F0] text-xs" />
+                                   <span className="text-gray-500 mr-1 text-sm">Ngày mua:</span>
+                                   <span className="font-bold text-gray-800 text-sm">{formatDate(item.createdAt)}</span>
+                                </div>
                              </div>
 
                               <div>
@@ -416,7 +456,7 @@ const MyTicketsPage: React.FC = () => {
                             </Tag>
                             
                             <div className="p-2 border-4 border-gray-800 rounded-lg bg-white">
-                                <QRCode value={buildTicketHtmlUrl(t.ticketId || 'INVALID')} size={180} />
+                                <QRCode value={buildTicketInfoUrl(t.ticketId || 'INVALID')} size={180} />
                             </div>
                             <Text copyable className="mt-3 font-mono text-gray-600 bg-gray-100 px-3 py-1 rounded">
                                 {t.ticketId}
