@@ -1,147 +1,120 @@
-# Nội dung trình bày 2 chức năng tiêu biểu trong báo cáo đồ án
+# Nội dung 2 chức năng tiêu biểu theo đúng mục lục báo cáo
 
-## 1. Giới thiệu chung
+## 1. Cách sử dụng tài liệu này
 
-Trong quá trình hiện thực hệ thống MyTicket, hai chức năng được xem là tiêu biểu nhất cho định hướng của đề tài là chức năng mã QR code trong lịch sử vé và email xác nhận vé, cùng với chức năng ban tổ chức xuất danh sách khách hàng mua vé theo từng sự kiện ra định dạng CSV hoặc PDF. Hai chức năng này được lựa chọn vì chúng thể hiện rõ hai khía cạnh quan trọng của hệ thống. Thứ nhất là khả năng phục vụ người dùng cuối bằng một quy trình mua vé điện tử liền mạch, thuận tiện và có độ tin cậy cao. Thứ hai là khả năng hỗ trợ vận hành cho phía ban tổ chức thông qua việc tổng hợp, chuẩn hóa và khai thác dữ liệu sau giao dịch.
+File này được viết theo đúng tinh thần “mỗi nội dung thuộc mục nào trong mục lục báo cáo thì đặt ngay dưới tên mục đó”. Khi đưa vào bài báo cáo, có thể sao chép từng đoạn theo đúng mã mục tương ứng, không cần tự tách lại nội dung như bản trước.
 
-Về mặt học thuật, đây không phải là hai chức năng quá nặng về thuật toán, nhưng lại thể hiện rõ tư duy thiết kế hệ thống theo hướng thực tiễn. Mỗi chức năng đều có sự kết hợp giữa giao diện người dùng, API backend, cơ sở dữ liệu, phân quyền truy cập và dịch vụ tích hợp bên ngoài. Vì vậy, khi trình bày trong báo cáo, hai chức năng này giúp làm nổi bật cách hệ thống được xây dựng một cách logic, có tổ chức và bám sát nhu cầu sử dụng thực tế.
+Hai chức năng được trình bày gồm:
 
-## 2. Chức năng mã QR code trong lịch sử vé và email xác nhận vé
+1. Mã QR code trong lịch sử vé và email xác nhận vé.
+2. Ban tổ chức xuất file CSV/PDF danh sách khách hàng mua vé của một sự kiện cụ thể.
 
-### 2.1. Mục tiêu của chức năng
+## 2. Chức năng 1: Mã QR code trong lịch sử vé và email xác nhận vé
 
-Chức năng này được xây dựng nhằm giải quyết nhu cầu truy cập vé điện tử nhanh chóng sau khi người dùng hoàn tất thanh toán. Thay vì chỉ dừng lại ở việc ghi nhận giao dịch thành công, hệ thống tiếp tục phát hành vé điện tử theo từng vé cụ thể, tạo mã QR tương ứng, đồng thời phân phối thông tin đó qua hai kênh chính là email xác nhận và màn hình `Vé của tôi` trong giao diện người dùng. Nhờ vậy, người mua có thể truy cập lại vé bất cứ lúc nào mà không cần thao tác phức tạp hoặc liên hệ thủ công với ban tổ chức.
+### Thuộc mục 3.1.2 ReactJS
 
-Ý nghĩa quan trọng của chức năng này nằm ở chỗ nó biến một giao dịch thanh toán thành một tài nguyên số có thể sử dụng ngay trong thực tế. Mã QR không chỉ mang ý nghĩa hiển thị, mà còn đóng vai trò là điểm truy cập nhanh tới trang thông tin vé điện tử tương ứng. Từ góc nhìn hệ thống, đây là bước nối giữa khối thanh toán, khối quản lý vé và khối thông báo tự động.
+Trong chức năng mã QR code, ReactJS giữ vai trò xây dựng toàn bộ lớp giao diện mà người dùng trực tiếp thao tác sau khi thanh toán thành công. Cụ thể, React được dùng để hiện thực trang `Vé của tôi`, cửa sổ modal hiển thị QR và trang vé điện tử công khai khi người dùng quét mã hoặc bấm vào đường dẫn từ email. Việc sử dụng React giúp giao diện được tách thành các thành phần rõ ràng, dễ quản lý trạng thái và thuận tiện khi mở rộng thêm các hành vi như xem QR, tải QR hoặc chuyển sang trang chi tiết vé.
 
-### 2.2. Cơ sở lý thuyết tóm tắt
+### Thuộc mục 3.4.2 Hệ thống gửi email thông báo và xác thực
 
-Mã QR là một dạng mã hai chiều cho phép lưu trữ thông tin dưới dạng ký tự và được giải mã nhanh bằng camera của điện thoại hoặc thiết bị quét chuyên dụng. Trong các hệ thống vé điện tử, mã QR thường không lưu toàn bộ dữ liệu nghiệp vụ của vé, mà chỉ đóng vai trò như một khóa hoặc một đường dẫn để truy xuất thông tin vé từ hệ thống trung tâm. Cách làm này giúp kiểm soát dữ liệu tốt hơn, đồng thời tránh việc làm lộ trực tiếp quá nhiều thông tin nhạy cảm trên mã hiển thị.
+Chức năng này sử dụng dịch vụ gửi email giao dịch để phát hành thông tin vé điện tử tới người mua ngay sau khi thanh toán hoàn tất. Trong hiện thực hiện tại, backend sử dụng SendGrid để gửi email HTML, trong đó mỗi vé có thể đi kèm đường dẫn truy cập nhanh và ảnh QR được nhúng trực tiếp vào nội dung thư. Cách làm này giúp email không chỉ mang tính thông báo mà còn trở thành một kênh truy cập vé điện tử thuận tiện cho người dùng trong thực tế.
 
-Bên cạnh đó, chức năng này còn liên quan tới cơ chế webhook trong thanh toán trực tuyến. Thay vì để frontend tự kết luận rằng giao dịch đã thành công, hệ thống sử dụng webhook từ cổng thanh toán để backend nhận được tín hiệu xác thực chính thức. Chỉ sau khi webhook xác nhận giao dịch hợp lệ, backend mới cập nhật trạng thái đơn mua vé sang `paid`, phát sinh vé điện tử và gửi email chứa thông tin truy cập vé. Về bản chất, đây là cách đảm bảo tính nhất quán giữa trạng thái thanh toán và trạng thái phát hành vé.
+### Thuộc mục 3.4.3 PayOS & Webhooks
 
-Ngoài ra, mô hình vé điện tử trong chức năng này cũng thể hiện đặc trưng của kiến trúc client-server. Frontend chịu trách nhiệm hiển thị và dẫn hướng người dùng, còn backend chịu trách nhiệm xác minh dữ liệu, tạo QR, kiểm tra quyền truy cập và cung cấp thông tin vé chuẩn xác từ cơ sở dữ liệu. Chính sự phân vai này giúp hệ thống dễ bảo trì và dễ mở rộng hơn về sau.
+PayOS giữ vai trò xác nhận tính hợp lệ của giao dịch trước khi hệ thống phát hành vé điện tử. Sau khi người dùng hoàn tất thanh toán, webhook từ PayOS được gửi về backend để thông báo rằng giao dịch đã thành công. Chỉ khi backend nhận được tín hiệu này và cập nhật đơn hàng sang trạng thái `paid`, hệ thống mới tiếp tục sinh mã QR, tạo đường dẫn vé điện tử và gửi email xác nhận. Cơ chế này giúp đồng bộ trạng thái thanh toán với trạng thái phát hành vé, hạn chế rủi ro cấp vé khi giao dịch chưa được xác nhận chính thức.
 
-### 2.3. Công nghệ và thư viện sử dụng
+### Thuộc mục 4.1.1 Đối với tất cả người dùng
 
-Chức năng mã QR code trong lịch sử vé và email xác nhận vé được xây dựng trên sự phối hợp của nhiều công nghệ khác nhau.
+Đối với người dùng cuối, hệ thống cần đáp ứng yêu cầu cho phép truy cập lại vé điện tử một cách nhanh chóng sau khi thanh toán. Cụ thể, người dùng phải có khả năng nhận email xác nhận kèm đường dẫn và mã QR của vé, đồng thời xem lại mã QR tương ứng trong mục `Vé của tôi`. Đây là yêu cầu chức năng quan trọng vì nó ảnh hưởng trực tiếp tới trải nghiệm sử dụng vé và mức độ thuận tiện khi tham gia sự kiện.
 
-- Ở phía frontend, ReactJS được sử dụng để xây dựng giao diện trang `Vé của tôi`, modal hiển thị QR và trang thông tin vé điện tử.
-- Ant Design được dùng để dựng các thành phần giao diện như `Modal`, `Button`, `Tag` và đặc biệt là component `QRCode` để hiển thị QR trực tiếp trên trình duyệt.
-- React Router DOM được sử dụng để định nghĩa route công khai tới trang thông tin vé điện tử, giúp người dùng mở đúng vé tương ứng sau khi quét QR.
-- Ở phía backend, Node.js kết hợp với Express đảm nhiệm việc xử lý API, tạo dữ liệu vé, xác thực người dùng và kết nối tới các dịch vụ ngoài.
-- MongoDB và Mongoose được sử dụng để lưu trữ và liên kết dữ liệu giữa `Purchase`, `Ticket`, `TicketClass`, `Event` và `User`.
-- Thư viện `qrcode` được dùng để sinh ảnh QR ở backend, phục vụ cho email xác nhận vé và API tải QR về máy.
-- Dịch vụ SendGrid được dùng để gửi email xác nhận với nội dung HTML và ảnh QR được nhúng trực tiếp trong email.
-- PayOS và cơ chế webhook được sử dụng để xác nhận giao dịch thành công trước khi hệ thống phát hành vé điện tử.
+### Thuộc mục 4.2.1.a Xác thực và Phân quyền
 
-Điểm đáng chú ý là hệ thống hiện sử dụng hai cách hiển thị QR khác nhau nhưng cùng phục vụ một đích. Frontend render QR trực tiếp để người dùng xem nhanh trong modal, còn backend tạo file PNG thật để nhúng vào email hoặc phục vụ tải xuống. Tuy khác nhau về cách hiện thực, cả hai đều trỏ tới cùng một luồng tra cứu vé điện tử.
+Mặc dù trang vé điện tử có thể được mở thông qua đường dẫn công khai, hệ thống vẫn phải kiểm soát chặt quyền truy cập đối với các API nội bộ liên quan đến quản lý vé. Ví dụ, API tải ảnh QR từ lịch sử vé yêu cầu người dùng phải đăng nhập hợp lệ và chỉ chủ sở hữu vé hoặc quản trị viên mới có quyền thao tác. Cách thiết kế này giúp cân bằng giữa tính thuận tiện trong sử dụng và yêu cầu bảo mật đối với dữ liệu vé điện tử.
 
-### 2.4. Quy trình hoạt động của chức năng
+### Thuộc mục 4.2.9 Tích hợp Bên thứ ba
 
-Luồng hoạt động của chức năng được tổ chức theo thứ tự chặt chẽ nhằm đảm bảo rằng vé điện tử chỉ được phát hành sau khi thanh toán thành công và dữ liệu vé đã sẵn sàng.
+Chức năng mã QR và email xác nhận vé là ví dụ rõ ràng cho việc hệ thống phụ thuộc vào các dịch vụ bên thứ ba trong quá trình vận hành. PayOS được sử dụng để xác nhận giao dịch, còn dịch vụ email giao dịch được dùng để phát hành thông tin vé tới người mua. Việc tích hợp này cho thấy hệ thống không hoạt động tách biệt, mà được thiết kế để phối hợp với các nền tảng ngoài nhằm hoàn thiện quy trình mua vé điện tử.
 
-Bước đầu tiên, người dùng chọn hạng vé, số lượng vé và tiến hành tạo đơn hàng trên hệ thống. Backend ghi nhận đơn mua vé với các thông tin như người mua, sự kiện, hạng vé, số lượng, tổng tiền và trạng thái thanh toán ban đầu. Với các giao dịch cần thanh toán trực tuyến, hệ thống tạo liên kết thanh toán thông qua PayOS để người dùng hoàn tất giao dịch.
+### Thuộc mục 5.1.1.b Mua vé
 
-Bước thứ hai, khi người dùng thanh toán xong, PayOS gửi webhook về backend. Đây là tín hiệu quan trọng để hệ thống xác nhận rằng giao dịch đã được xử lý thành công từ phía cổng thanh toán, không chỉ từ phía giao diện người dùng. Backend sau đó cập nhật `paymentStatus` của bản ghi `Purchase` sang trạng thái `paid`. Chỉ tại thời điểm này, hệ thống mới xem giao dịch là hợp lệ để phát hành vé điện tử.
+Trong use case mua vé, sau khi người dùng chọn hạng vé, số lượng vé và thanh toán thành công, hệ thống tiếp tục thực hiện bước phát hành vé điện tử. Ở bước này, mỗi vé hợp lệ được gán một đường dẫn truy cập riêng và được sinh mã QR tương ứng. Đồng thời, hệ thống gửi email xác nhận để người mua có thể sử dụng vé ngay mà không cần chờ xử lý thủ công từ phía ban tổ chức.
 
-Bước thứ ba, sau khi trạng thái đơn mua vé được cập nhật, backend thực hiện bước bảo đảm đủ danh sách vé tương ứng với số lượng người dùng đã mua. Với vé có chỗ ngồi cố định, hệ thống sử dụng các bản ghi `Ticket` đã được gắn với từng ghế. Với vé tự do, hệ thống có thể tạo bổ sung các bản ghi vé động nếu cần để mỗi vé đều có một định danh riêng. Đây là bước quan trọng vì hệ thống cần quản lý ở mức từng vé, không chỉ ở mức đơn hàng.
+### Thuộc mục 5.1.1.c Xem lịch sử mua vé
 
-Bước thứ tư, với mỗi vé hợp lệ, backend xây dựng một liên kết công khai dẫn tới trang thông tin vé điện tử. Liên kết này không dùng trực tiếp mã đơn hàng mà ưu tiên định danh riêng của từng vé để giảm rủi ro trùng lặp. Sau đó, backend sử dụng thư viện `qrcode` để tạo ảnh QR từ đường dẫn vừa dựng. Nội dung QR vì vậy không phải là toàn bộ dữ liệu vé, mà là một cách truy cập nhanh tới dữ liệu vé được kiểm soát bởi hệ thống.
+Trong use case xem lịch sử mua vé, người dùng có thể truy cập mục `Vé của tôi` để kiểm tra các đơn hàng đã thanh toán và xem danh sách vé tương ứng. Tại đây, mỗi vé có thể được hiển thị cùng mã QR preview, giúp người dùng sử dụng nhanh cho mục đích check-in hoặc tra cứu lại thông tin vé. Ngoài ra, hệ thống cũng hỗ trợ tải ảnh QR về thiết bị khi người dùng có nhu cầu lưu trữ riêng.
 
-Bước thứ năm, sau khi danh sách vé và QR đã được tạo, backend gửi email xác nhận tới người mua. Email này chứa thông tin sự kiện, đường dẫn truy cập vé điện tử và ảnh QR tương ứng với từng vé. Việc nhúng QR trực tiếp vào email giúp người dùng có thể lưu lại vé ngay trong hộp thư mà không cần đăng nhập lại hệ thống trong mọi trường hợp.
+### Thuộc mục 5.2.1.a Activity Diagram cho Người dùng - Mua vé sự kiện
 
-Bước thứ sáu, ở phía giao diện người dùng, trang `Vé của tôi` tiếp tục lấy danh sách các đơn hàng đã thanh toán từ backend. Dựa trên danh sách vé con của từng purchase, frontend hiển thị QR preview trực tiếp bằng component `QRCode` của Ant Design. Nếu người dùng muốn lưu ảnh QR về máy, frontend sẽ gọi một API backend riêng để lấy file PNG đã được sinh sẵn theo đúng vé tương ứng.
+Trong sơ đồ hoạt động của chức năng mua vé, nên bổ sung rõ chuỗi xử lý sau thanh toán. Sau khi người dùng hoàn tất giao dịch, cổng thanh toán gửi webhook về backend. Backend cập nhật trạng thái đơn hàng sang `paid`, bảo đảm đủ danh sách vé tương ứng, sinh liên kết vé điện tử cho từng vé, tạo QR từ liên kết đó và cuối cùng gửi email xác nhận tới người mua. Phần hoạt động này cho thấy việc phát hành vé điện tử là kết quả của một chuỗi xử lý liên tục, không phải một thao tác giao diện đơn lẻ.
 
-Bước cuối cùng, khi người dùng quét QR từ email hoặc từ màn hình lịch sử vé, thiết bị sẽ được dẫn tới trang thông tin vé điện tử công khai. Trang này gọi API public từ backend để truy xuất dữ liệu vé đã thanh toán, bao gồm thông tin sự kiện, loại vé, vị trí ghế nếu có, tình trạng thanh toán và người sở hữu vé. Nhờ đó, một mã QR duy nhất có thể trở thành điểm kết nối giữa nhiều thao tác khác nhau trong vòng đời sử dụng vé.
+### Thuộc mục 5.3.1 Chức năng mua vé dành cho người dùng
 
-### 2.5. Vai trò và tầm quan trọng của chức năng
+Trong sơ đồ tuần tự, chức năng này nên được mô tả qua các thành phần chính gồm frontend, payment API, PayOS, purchase service, ticket service và email service. Trình tự thực hiện có thể mô tả như sau: frontend gửi yêu cầu mua vé, backend tạo purchase và liên kết thanh toán, người dùng thanh toán qua PayOS, PayOS gọi webhook về backend, backend cập nhật purchase thành `paid`, ticket service chuẩn hóa danh sách vé, sau đó email service gửi thư xác nhận kèm đường dẫn và QR tương ứng. Cách mô tả này phản ánh rõ sự phối hợp giữa nhiều lớp hệ thống trong cùng một chức năng.
 
-Xét về mặt nghiệp vụ, đây là chức năng giúp hệ thống hoàn thiện trọn vẹn chu trình mua vé điện tử. Nếu một hệ thống chỉ dừng ở bước thanh toán thành công nhưng không hỗ trợ truy cập vé nhanh, trải nghiệm người dùng vẫn bị gián đoạn. Chức năng QR và email xác nhận vé giải quyết đúng khoảng trống đó bằng cách đưa vé đến gần người dùng hơn, ở cả hai kênh quen thuộc là email và giao diện cá nhân.
+### Thuộc mục 6.1 Kiến trúc hệ thống
 
-Xét về mặt trải nghiệm sử dụng, chức năng này giúp người dùng giảm phụ thuộc vào thao tác thủ công. Người mua không cần nhớ mã vé, không cần tìm lại lịch sử giao dịch phức tạp, cũng không cần liên hệ ban tổ chức để xác nhận vé sau khi thanh toán. Chỉ cần mở email hoặc truy cập `Vé của tôi`, người dùng đã có thể sử dụng QR tương ứng với từng vé đã mua.
+Xét trong kiến trúc hệ thống, chức năng mã QR code và email xác nhận vé trải qua nhiều khối xử lý. Ở lớp giao diện, chức năng này thuộc về khối ứng dụng khách, nơi người dùng thao tác với trang lịch sử vé, modal QR và trang vé điện tử. Ở lớp nghiệp vụ, nó thuộc về khối quản lý purchase và ticket, nơi hệ thống xác minh trạng thái giao dịch và phát hành vé. Tiếp theo, chức năng còn liên quan tới khối tích hợp thanh toán thông qua webhook PayOS và khối thông báo thông qua dịch vụ gửi email. Toàn bộ dữ liệu nền được lưu trong MongoDB, tạo thành khối dữ liệu trung tâm phục vụ tra cứu và xác thực vé điện tử.
 
-Xét về mặt độ tin cậy dữ liệu, chức năng này cho thấy sự liên kết chặt giữa thanh toán và phát hành vé. QR chỉ có giá trị khi purchase đã ở trạng thái `paid`, nhờ đó hệ thống hạn chế được tình trạng phát hành nhầm vé cho đơn hàng chưa thanh toán hoàn tất. Đây là một yêu cầu rất quan trọng trong các hệ thống bán vé trực tuyến.
+### Thuộc mục 6.2 Thiết kế Database
 
-Xét về khả năng mở rộng, kiến trúc hiện tại hoàn toàn có thể phát triển tiếp thành hệ thống check-in tự động tại cổng sự kiện, hoặc kết hợp thêm cơ chế xác minh trạng thái vé theo thời gian thực. Nói cách khác, chức năng hiện tại vừa mang giá trị sử dụng tức thời, vừa đóng vai trò nền tảng cho các cải tiến sau này.
+Về dữ liệu, chức năng này dựa trên mối liên kết chặt chẽ giữa các thực thể `Purchase`, `Ticket`, `TicketClass`, `Event` và `User`. `Purchase` lưu thông tin giao dịch, số lượng vé, phương thức thanh toán và trạng thái thanh toán. `Ticket` đại diện cho từng vé cụ thể và là đơn vị được dùng để sinh QR. `TicketClass` cho biết loại vé, giá vé và kiểu ghế. `Event` cung cấp thông tin sự kiện, còn `User` là chủ thể sở hữu đơn mua vé. Cấu trúc này cho phép hệ thống quản lý vé ở mức chi tiết, từ đó tạo ra mã QR chính xác cho từng vé thay vì chỉ ở cấp độ đơn hàng.
 
-### 2.6. Vị trí của chức năng trong kiến trúc hệ thống
+### Thuộc mục 8.1.7 Tiến hành thanh toán
 
-Trong kiến trúc tổng thể của MyTicket, chức năng này không nằm gọn trong một khối duy nhất mà trải qua nhiều lớp xử lý. Ở lớp giao diện, nó thuộc về khối người dùng cuối, nơi người mua tương tác với trang lịch sử vé, modal QR và trang vé điện tử. Ở lớp xử lý nghiệp vụ, nó thuộc về khối quản lý đơn mua vé và quản lý vé, nơi hệ thống xác định vé nào hợp lệ, vé nào đã thanh toán và vé nào được phép truy xuất.
+Trong phần hiện thực thanh toán, cần nhấn mạnh rằng việc gửi email vé và tạo mã QR không diễn ra trước khi giao dịch được xác nhận. Chỉ sau khi webhook từ PayOS trả về trạng thái thành công, backend mới cập nhật purchase sang `paid` và thực hiện các bước phát hành vé điện tử. Điều này cho thấy luồng thanh toán và luồng phát hành vé được tách biệt nhưng liên kết chặt chẽ với nhau, giúp tăng độ an toàn cho hệ thống.
 
-Tiếp theo, chức năng này gắn trực tiếp với khối tích hợp thanh toán thông qua webhook PayOS. Không có bước xác nhận này, backend không thể kết luận chính xác rằng vé đã được phép phát hành. Đồng thời, chức năng cũng đi qua khối thông báo, nơi email xác nhận được dựng và gửi tới người dùng. Cuối cùng, toàn bộ dữ liệu đều dựa trên cơ sở dữ liệu trung tâm MongoDB, nơi lưu thông tin purchase, ticket, event, user và các mối liên kết giữa chúng.
+### Thuộc mục 8.1.8 Trang Lịch sử mua vé
 
-Vì vậy, khi trình bày trong báo cáo, có thể xem chức năng QR code trong lịch sử vé và email xác nhận vé là một ví dụ rõ ràng cho mô hình phối hợp nhiều tầng trong kiến trúc client-server. Nó vừa liên quan đến UI, vừa phụ thuộc vào backend logic, vừa cần tới dịch vụ ngoài và cơ sở dữ liệu để hoạt động đúng.
+Trong phần hiện thực giao diện lịch sử vé, cần mô tả rằng mỗi đơn hàng đã thanh toán sẽ hiển thị danh sách vé tương ứng kèm các thao tác liên quan. Người dùng có thể mở modal để xem QR của từng vé, kiểm tra nhanh thông tin nhận diện vé và tải ảnh QR về máy nếu cần. Giao diện này đóng vai trò là điểm truy cập trung tâm cho người dùng sau thanh toán, giúp việc sử dụng vé điện tử trở nên trực quan và thuận tiện hơn.
 
-## 3. Chức năng ban tổ chức xuất file CSV/PDF danh sách khách hàng mua vé theo sự kiện
+## 3. Chức năng 2: Ban tổ chức xuất file CSV/PDF danh sách khách hàng mua vé theo sự kiện
 
-### 3.1. Mục tiêu của chức năng
+### Thuộc mục 3.1.2 ReactJS
 
-Nếu chức năng QR tập trung vào phía người mua vé, thì chức năng xuất danh sách khách hàng lại đại diện cho giá trị vận hành mà hệ thống mang lại cho ban tổ chức. Mục tiêu của chức năng này là giúp organizer dễ dàng theo dõi danh sách người đã mua vé cho từng sự kiện, kiểm tra thông tin khách hàng ngay trên giao diện, đồng thời xuất dữ liệu ra các định dạng phổ biến để phục vụ đối soát, chuẩn bị check-in hoặc chăm sóc khách hàng sau bán.
+Trong khu vực dành cho ban tổ chức, ReactJS được sử dụng để xây dựng trang quản lý thông tin sự kiện và cửa sổ hiển thị danh sách khách hàng đã mua vé. Nhờ mô hình component, hệ thống có thể tổ chức riêng phần bảng attendee, phần nút export và phần modal dữ liệu theo từng sự kiện. Điều này giúp giao diện vận hành ổn định hơn, đồng thời thuận tiện khi cần mở rộng thêm các thao tác lọc, sắp xếp hoặc tìm kiếm trong tương lai.
 
-Về bản chất, đây là chức năng tổng hợp dữ liệu nghiệp vụ sau giao dịch. Hệ thống không chỉ hiển thị danh sách mua vé ở mức đơn hàng, mà còn làm phẳng dữ liệu theo từng vé và chuẩn hóa thành một bảng dễ đọc, dễ kiểm tra và dễ xuất ra tài liệu. Chính điểm này làm cho chức năng mang tính thực tiễn cao, vì organizer thường cần dữ liệu ở dạng có thể thao tác ngay thay vì chỉ xem trên màn hình.
+### Thuộc mục 3.2.1 Hệ quản trị cơ sở dữ liệu MongoDB
 
-### 3.2. Cơ sở lý thuyết tóm tắt
+Chức năng export danh sách khách hàng phản ánh khá rõ ưu điểm của mô hình dữ liệu document trong MongoDB. Dữ liệu phục vụ cho bảng attendee không nằm gọn trong một collection đơn lẻ mà phải được tổng hợp từ nhiều nguồn như `Event`, `Purchase`, `Ticket`, `User` và `TicketClass`. Nhờ cấu trúc lưu trữ linh hoạt và khả năng liên kết thông qua Mongoose, hệ thống có thể truy vấn, populate và chuẩn hóa dữ liệu thành một danh sách nghiệp vụ đủ dùng cho cả hiển thị và xuất file.
 
-Hai khái niệm lý thuyết ngắn gọn liên quan trực tiếp đến chức năng này là tổng hợp dữ liệu nghiệp vụ và xuất báo cáo số. Trong các hệ thống thông tin quản lý, dữ liệu hiển thị cho người vận hành hiếm khi đến từ một bảng hoặc một collection đơn lẻ. Thay vào đó, hệ thống cần ghép nhiều nguồn dữ liệu khác nhau để tạo thành một tập thông tin có ý nghĩa nghiệp vụ hoàn chỉnh. Với MyTicket, danh sách khách hàng mua vé phải được tạo từ quan hệ giữa người mua, đơn hàng, vé, hạng vé và sự kiện.
+### Thuộc mục 3.4 Các dịch vụ tích hợp và tiện ích hỗ trợ
 
-Bên cạnh đó, việc xuất dữ liệu ra CSV và PDF là một hình thức chuyển đổi dữ liệu từ trạng thái phục vụ xử lý trong hệ thống sang trạng thái phục vụ lưu trữ, chia sẻ và tác nghiệp. CSV phù hợp cho việc nhập lại vào Excel hoặc Google Sheets để lọc, sắp xếp và thống kê. PDF lại phù hợp cho các tình huống cần tài liệu có bố cục ổn định, dễ in ấn hoặc gửi nội bộ mà không làm thay đổi định dạng.
+Ở phía giao diện organizer, hệ thống sử dụng `jsPDF` và `jspdf-autotable` để xuất dữ liệu attendee sang định dạng PDF, đồng thời dùng `Blob` để sinh file CSV trực tiếp từ trình duyệt. Nhóm thư viện này không làm thay đổi logic nghiệp vụ cốt lõi, nhưng đóng vai trò quan trọng trong việc chuyển dữ liệu đang hiển thị thành tài liệu có thể lưu trữ, in ấn hoặc gửi nội bộ. Đây là thành phần tiện ích hỗ trợ nhưng có giá trị thực tế cao trong vận hành sự kiện.
 
-Chức năng này cũng gắn chặt với nguyên tắc phân quyền trong hệ thống. Dữ liệu khách hàng là dữ liệu nhạy cảm, do đó backend phải kiểm tra chặt chẽ vai trò người dùng và quyền sở hữu sự kiện trước khi cho phép truy xuất danh sách attendee. Nói cách khác, export dữ liệu không đơn thuần là thao tác kỹ thuật, mà còn là một bài toán về kiểm soát truy cập.
+### Thuộc mục 4.1.2 Đối với tất cả Ban tổ chức sự kiện
 
-### 3.3. Công nghệ và thư viện sử dụng
+Đối với vai trò ban tổ chức, hệ thống cần đáp ứng yêu cầu cho phép xem danh sách khách hàng đã thanh toán theo từng sự kiện và xuất dữ liệu đó ra file phục vụ quản lý. Đây là yêu cầu chức năng quan trọng vì organizer không chỉ cần tạo và bán vé, mà còn cần nắm được dữ liệu người tham dự để chuẩn bị check-in, chăm sóc khách hàng hoặc đối soát sau sự kiện.
 
-Chức năng xuất danh sách khách hàng theo sự kiện được xây dựng trên sự phối hợp giữa frontend organizer portal và backend API chuyên trách.
+### Thuộc mục 4.2.5 Khả năng Bảo trì
 
-- ReactJS được dùng để xây dựng trang quản lý thông tin sự kiện của organizer.
-- Ant Design được dùng để hiển thị bảng attendee, modal danh sách khách hàng, nút thao tác và trạng thái tải dữ liệu.
-- Axios được dùng để giao tiếp giữa frontend và backend khi lấy danh sách khách hàng theo `eventId`.
-- Ở frontend, `Blob` được sử dụng để tạo file CSV và kích hoạt quá trình tải file về máy người dùng.
-- Thư viện `jsPDF` và `jspdf-autotable` được dùng để xuất dữ liệu attendee sang file PDF theo bố cục bảng có thể đọc và in ấn.
-- Ở backend, Node.js và Express xử lý endpoint lấy danh sách attendee của một sự kiện.
-- MongoDB và Mongoose được dùng để truy vấn và nối dữ liệu từ `Organizer`, `Event`, `Purchase`, `Ticket`, `User` và `TicketClass`.
-- Middleware xác thực token và phân quyền được dùng để đảm bảo chỉ organizer sở hữu sự kiện hoặc admin mới có quyền truy cập dữ liệu này.
+Chức năng này được thiết kế theo hướng dễ bảo trì nhờ sử dụng một nguồn dữ liệu thống nhất cho cả hiển thị và export. Backend chỉ chịu trách nhiệm trả về danh sách attendee đã được chuẩn hóa, còn frontend tái sử dụng chính dataset đó để hiển thị bảng và sinh file CSV hoặc PDF. Cách tổ chức này giúp giảm lặp logic, dễ kiểm soát thay đổi và thuận tiện khi cần mở rộng thêm định dạng đầu ra trong tương lai.
 
-Điểm nổi bật của chức năng là logic tổng hợp dữ liệu được đặt ở backend, còn logic sinh file lại đặt ở frontend. Cách tách này giúp backend tập trung vào tính đúng đắn của dữ liệu, trong khi frontend linh hoạt hơn trong việc chuyển đổi cùng một dataset sang nhiều định dạng đầu ra khác nhau.
+### Thuộc mục 4.2.7 Khả năng Sử dụng và Trải nghiệm Người dùng
 
-### 3.4. Quy trình hoạt động của chức năng
+Từ góc nhìn trải nghiệm, chức năng này giúp organizer thao tác nhanh và trực quan hơn trên cùng một giao diện. Người dùng có thể mở danh sách khách hàng của một sự kiện, xem trước toàn bộ dữ liệu trên bảng rồi mới quyết định export sang định dạng mong muốn. Nhờ đó, hệ thống tránh được tình trạng tải file mù mà không kiểm tra trước dữ liệu, đồng thời tăng tính tiện dụng cho người vận hành.
 
-Luồng hoạt động của chức năng bắt đầu từ phía organizer khi người dùng đăng nhập vào khu vực quản lý sự kiện. Tại trang thông tin sự kiện, organizer có thể xem danh sách các sự kiện do mình phụ trách. Mỗi sự kiện đi kèm một thao tác mở danh sách khách hàng đã mua vé.
+### Thuộc mục 5.1.2.b Theo dõi thông tin sự kiện
 
-Khi organizer chọn một sự kiện cụ thể, frontend trước hết xác định `organizerId` tương ứng với tài khoản đang đăng nhập. Sau đó, frontend gửi request tới endpoint lấy danh sách khách hàng mua vé của sự kiện đó. Request này không chỉ mang ý nghĩa truy vấn dữ liệu mà còn là bước khởi đầu cho cơ chế kiểm tra phân quyền ở backend.
+Trong use case theo dõi thông tin sự kiện, ngoài các dữ liệu mô tả sự kiện, ban tổ chức còn cần xem được danh sách khách hàng đã mua vé cho sự kiện đó. Chức năng export danh sách attendee được xem là phần mở rộng trực tiếp của use case này, vì nó giúp organizer không chỉ theo dõi số liệu trên hệ thống mà còn chuyển dữ liệu thành tài liệu phục vụ công việc thực tế.
 
-Bước tiếp theo, backend kiểm tra token đăng nhập và xác minh vai trò của người gửi request. Nếu tài khoản không phải organizer hoặc admin, hoặc nếu organizer đang cố truy cập dữ liệu của sự kiện không thuộc quyền quản lý của mình, hệ thống sẽ từ chối truy cập. Đây là lớp bảo vệ quan trọng nhằm đảm bảo dữ liệu khách hàng không bị lộ ra ngoài phạm vi được phép sử dụng.
+### Thuộc mục 5.2.2.b Theo dõi thông tin sự kiện
 
-Sau khi xác thực quyền truy cập, backend truy vấn sự kiện tương ứng và lấy toàn bộ các purchase đã thanh toán thành công của sự kiện đó. Đồng thời, hệ thống populate thông tin người mua và hạng vé để có đủ ngữ cảnh nghiệp vụ cho từng bản ghi. Tuy nhiên, dữ liệu ở thời điểm này vẫn chưa phải là dữ liệu cuối cùng để hiển thị hoặc export, vì purchase mới chỉ phản ánh giao dịch ở mức đơn hàng.
+Trong sơ đồ hoạt động, nên mô tả luồng theo trình tự sau: organizer mở màn hình thông tin sự kiện, chọn một sự kiện cụ thể, hệ thống gửi request lấy danh sách khách hàng, backend kiểm tra quyền truy cập, tổng hợp dữ liệu attendee và trả kết quả về frontend. Sau khi dữ liệu được hiển thị trên modal, organizer có thể chọn xuất ra CSV hoặc PDF. Chuỗi xử lý này phản ánh đúng cách chức năng vận hành trong hệ thống hiện tại.
 
-Bước tiếp theo, backend truy vấn collection `Ticket` dựa trên danh sách purchase vừa thu được. Các bản ghi vé được gom nhóm theo từng đơn hàng, sau đó hệ thống làm phẳng dữ liệu thành danh sách attendee. Trong danh sách này, mỗi vé tương ứng với một dòng dữ liệu, bao gồm tên khách hàng, email, số điện thoại, mã vé, hạng vé, vị trí ghế nếu có, phương thức thanh toán và thời điểm mua. Chính bước chuẩn hóa này làm cho dữ liệu trở nên phù hợp với nhu cầu sử dụng của organizer hơn là cấu trúc lưu trữ thô trong database.
+### Thuộc mục 6.1 Kiến trúc hệ thống
 
-Sau khi backend trả về `attendees[]`, frontend hiển thị danh sách ngay trong modal để organizer có thể xem trước dữ liệu trên giao diện. Việc cho phép xem trực tiếp trước khi export giúp người dùng kiểm tra nhanh thông tin, xác nhận số lượng bản ghi và tránh tải về những file không cần thiết.
+Trong kiến trúc hệ thống, chức năng này nằm ở giao điểm giữa khối organizer portal, organizer API, khối tổng hợp dữ liệu và khối xuất tài liệu. Frontend giữ vai trò hiển thị bảng dữ liệu và điều khiển thao tác export. Backend giữ vai trò xác thực người dùng, kiểm tra quyền sở hữu sự kiện và tổng hợp dữ liệu attendee từ nhiều collection. Sau khi dữ liệu được chuẩn hóa, frontend tiếp nhận và chuyển thành file CSV hoặc PDF. Đây là ví dụ rõ ràng cho cách hệ thống phối hợp giữa lớp giao diện và lớp nghiệp vụ để phục vụ nhu cầu quản trị vận hành.
 
-Nếu organizer chọn xuất CSV, frontend sử dụng chính dataset đang hiển thị để chuyển thành chuỗi CSV có cấu trúc theo cột. Nếu organizer chọn xuất PDF, frontend sử dụng `jsPDF` kết hợp với `jspdf-autotable` để dựng bảng dữ liệu theo bố cục trang in. Nhờ vậy, cùng một nguồn dữ liệu được tái sử dụng cho cả phần hiển thị và phần xuất tài liệu, giúp tránh lặp logic và giữ tính nhất quán giữa giao diện với file đầu ra.
+### Thuộc mục 6.2 Thiết kế Database
 
-### 3.5. Vai trò và tầm quan trọng của chức năng
+Về thiết kế dữ liệu, chức năng này dựa trên mối liên kết giữa `Organizer`, `Event`, `Purchase`, `Ticket`, `User` và `TicketClass`. `Event` xác định phạm vi sự kiện cần lấy dữ liệu. `Purchase` lưu giao dịch đã thanh toán thành công. `Ticket` đại diện cho từng vé cụ thể để hệ thống có thể làm phẳng dữ liệu theo từng dòng attendee. `User` cung cấp thông tin khách hàng, còn `TicketClass` bổ sung ngữ cảnh về loại vé và giá vé. Sự kết hợp của các thực thể này tạo thành một tập dữ liệu hoàn chỉnh phục vụ cho cả hiển thị và xuất báo cáo.
 
-Về mặt nghiệp vụ vận hành, đây là một chức năng có giá trị rất thực tế đối với ban tổ chức. Một hệ thống bán vé chỉ phục vụ tốt người mua thôi là chưa đủ. Ban tổ chức còn cần biết ai đã mua vé, mua loại vé nào, đã thanh toán hay chưa và cần chuẩn bị danh sách khách tham dự ra sao. Chức năng export attendee đáp ứng trực tiếp nhu cầu đó bằng cách chuyển dữ liệu giao dịch thành dữ liệu vận hành.
+### Thuộc mục 8.2.2 Trang thông tin sự kiện
 
-Về mặt quản trị dữ liệu, chức năng này cho thấy hệ thống MyTicket không chỉ lưu dữ liệu để tham chiếu, mà còn có khả năng khai thác dữ liệu đúng mục đích sử dụng. Dữ liệu người dùng, purchase và ticket được liên kết lại để tạo thành một bảng nghiệp vụ rõ ràng, dễ đọc và dễ xử lý tiếp. Đây là một điểm mạnh khi đánh giá tính hoàn chỉnh của hệ thống thông tin.
+Trong phần hiện thực giao diện cho ban tổ chức, cần mô tả rằng tại trang thông tin sự kiện, người dùng có thể mở danh sách khách hàng đã mua vé cho từng sự kiện cụ thể. Dữ liệu được hiển thị dưới dạng bảng, bao gồm các trường quan trọng như tên khách hàng, email, số điện thoại, mã vé, loại vé, vị trí ghế, phương thức thanh toán và thời điểm mua. Từ bảng dữ liệu này, organizer có thể xuất danh sách sang CSV hoặc PDF để sử dụng trong các hoạt động vận hành tiếp theo.
 
-Về mặt kỹ thuật, chức năng này thể hiện rõ tư duy tách lớp xử lý. Backend chịu trách nhiệm xác minh quyền, gom dữ liệu và chuẩn hóa dữ liệu. Frontend chịu trách nhiệm hiển thị và sinh file đầu ra theo nhu cầu cụ thể của người dùng. Cách phân chia này giúp hệ thống linh hoạt hơn, đồng thời tránh việc backend phải gánh thêm trách nhiệm dựng file ở nhiều định dạng khác nhau khi chưa thực sự cần thiết.
+## 4. Đoạn kết dùng cho phần tổng kết hai chức năng tiêu biểu
 
-Về mặt thực tiễn, hai định dạng CSV và PDF phục vụ hai nhu cầu khác nhau nhưng bổ trợ tốt cho nhau. CSV thuận tiện khi cần tiếp tục chỉnh sửa, lọc hoặc tính toán trên bảng tính. PDF thuận tiện khi cần lưu trữ, gửi qua email nội bộ hoặc in ra để phục vụ khâu kiểm tra tại sự kiện. Nhờ đó, chức năng này đem lại giá trị trực tiếp cho người sử dụng ở vai trò organizer.
+Hai chức năng được lựa chọn làm điểm nhấn trong báo cáo đại diện cho hai hướng giá trị khác nhau nhưng bổ trợ lẫn nhau trong MyTicket. Chức năng mã QR code trong lịch sử vé và email xác nhận vé thể hiện khả năng hoàn thiện chu trình mua vé điện tử từ thanh toán đến sử dụng thực tế. Trong khi đó, chức năng export danh sách khách hàng mua vé theo sự kiện thể hiện khả năng hỗ trợ quản trị vận hành và khai thác dữ liệu dành cho ban tổ chức.
 
-### 3.6. Vị trí của chức năng trong kiến trúc hệ thống
-
-Trong sơ đồ kiến trúc hệ thống, chức năng này có thể được xem là nằm ở giao điểm giữa khối quản trị sự kiện và khối khai thác dữ liệu vận hành. Ở phía frontend, nó thuộc về organizer portal, nơi người dùng quản lý sự kiện của mình, mở danh sách khách hàng và lựa chọn định dạng export. Ở phía backend, nó thuộc về organizer API và lớp xử lý tổng hợp dữ liệu, nơi request được xác thực, kiểm tra quyền và truy vấn các collection liên quan.
-
-Nếu nhìn sâu hơn vào luồng xử lý, có thể tách riêng một khối `Data Aggregation` cho chức năng này. Đây là nơi hệ thống kết hợp dữ liệu từ `Purchase`, `Ticket`, `User`, `TicketClass` và `Event` để tạo thành một cấu trúc dữ liệu đã sẵn sàng cho hiển thị và export. Sau đó, dữ liệu được chuyển tới lớp giao diện, nơi frontend đảm nhận vai trò `Export Document` để sinh ra file CSV hoặc PDF.
-
-Vì vậy, chức năng này là ví dụ điển hình cho cách hệ thống khai thác dữ liệu từ kho dữ liệu nghiệp vụ để phục vụ bài toán báo cáo và tác nghiệp. Nó không chỉ minh họa cho chức năng riêng lẻ, mà còn phản ánh cách dữ liệu trong hệ thống được tái sử dụng một cách có giá trị.
-
-## 4. Đánh giá chung về hai chức năng tiêu biểu
-
-Hai chức năng được lựa chọn trong báo cáo đại diện cho hai hướng giá trị khác nhau nhưng bổ trợ lẫn nhau trong MyTicket. Chức năng mã QR code trong lịch sử vé và email xác nhận vé đại diện cho trải nghiệm người dùng sau thanh toán, nhấn mạnh tính liền mạch, thuận tiện và đáng tin cậy của vé điện tử. Trong khi đó, chức năng organizer xuất file CSV/PDF danh sách khách hàng mua vé theo sự kiện đại diện cho khả năng khai thác dữ liệu và hỗ trợ vận hành phía ban tổ chức.
-
-Điểm chung của cả hai chức năng là đều không hoạt động độc lập ở một lớp duy nhất. Chúng đòi hỏi sự phối hợp giữa frontend, backend, database, phân quyền và một số dịch vụ tích hợp bên ngoài. Chính điều này làm cho hai chức năng trở thành ví dụ phù hợp để trình bày trong báo cáo đồ án tốt nghiệp, vì chúng thể hiện rõ hơn cách một hệ thống phần mềm hoàn chỉnh được tổ chức và vận hành.
-
-Xét trên phương diện học thuật và thực tiễn, việc lựa chọn hai chức năng này làm điểm nhấn cho phần hiện thực hệ thống là hợp lý. Một chức năng cho thấy MyTicket giải quyết tốt vòng đời sử dụng vé điện tử của người mua, còn chức năng kia cho thấy hệ thống có giá trị vận hành rõ ràng đối với ban tổ chức sự kiện. Khi đặt cạnh nhau, chúng giúp chứng minh rằng đề tài không chỉ dừng ở mức xây dựng giao diện hay CRUD dữ liệu, mà đã tiến tới giải quyết những tình huống sử dụng cụ thể, sát với nhu cầu thực tế của một nền tảng bán vé sự kiện.
+Điểm chung của cả hai chức năng là đều yêu cầu sự phối hợp giữa nhiều lớp trong hệ thống, bao gồm giao diện, backend, cơ sở dữ liệu, phân quyền truy cập và dịch vụ tích hợp bên ngoài. Chính vì vậy, đây là hai ví dụ phù hợp để trình bày trong báo cáo đồ án tốt nghiệp, vì chúng cho thấy đề tài không chỉ dừng lại ở mức xây dựng giao diện hay xử lý CRUD cơ bản, mà đã giải quyết các tình huống sử dụng thực tế, có giá trị rõ ràng đối với cả người mua vé lẫn đơn vị tổ chức sự kiện.
