@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Event from '../models/Event.js'; 
-import TicketClass from '../models/TicketClass.js';
+import TicketClass from '../models/TicketClass.js'; // Import thêm model TicketClass
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -10,7 +10,7 @@ export const generateChatResponse = async (userMessage) => {
     const events = await Event.find({ status: 'published' })
                               .sort({ startDateTime: 1 })
                               .limit(30)
-                              .lean(); 
+                              .lean(); // Dùng .lean() để dễ xử lý data
     
     // Lấy ID của các sự kiện này
     const eventIds = events.map(ev => ev._id);
@@ -67,7 +67,7 @@ export const generateChatResponse = async (userMessage) => {
       Nếu không có thông tin phù hợp, hãy xin lỗi khéo léo.
     `;
 
-    // 6. GỌI AI (Sử dụng model 2.5-flash trên server Singapore)
+    // 6. GỌI AI
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.5-flash", 
       systemInstruction: systemInstruction 
@@ -77,7 +77,6 @@ export const generateChatResponse = async (userMessage) => {
     return result.response.text();
 
   } catch (error) {
-    // Log lỗi đơn giản, dễ nhìn của bản cũ
     console.error("Lỗi khi gọi Google Gemini API:", error);
     throw new Error("Không thể xử lý yêu cầu AI lúc này.");
   }
