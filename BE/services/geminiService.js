@@ -1,86 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Event from '../models/Event.js'; 
-import TicketClass from '../models/TicketClass.js'; // Import thêm model TicketClass
+import TicketClass from '../models/TicketClass.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-const redactSensitiveText = (value = '') => String(value)
-  .replace(/AIza[0-9A-Za-z\-_]{20,}/g, '[REDACTED_API_KEY]')
-  .replace(/([?&]key=)[^&\s]+/gi, '$1[REDACTED]')
-  .replace(/((?:api[_-]?key|authorization)"?\s*[:=]\s*")([^"]+)(")/gi, '$1[REDACTED]$3');
-
-const sanitizeForLog = (value, depth = 0, seen = new WeakSet()) => {
-  if (value === null || value === undefined) {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    return redactSensitiveText(value);
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return value;
-  }
-
-  if (value instanceof Error) {
-    return {
-      name: value.name,
-      message: redactSensitiveText(value.message || ''),
-      code: value.code || null,
-      status: value.status || null,
-    };
-  }
-
-  if (depth >= 4) {
-    return '[Truncated]';
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeForLog(item, depth + 1, seen));
-  }
-
-  if (typeof value === 'object') {
-    if (seen.has(value)) {
-      return '[Circular]';
-    }
-
-    seen.add(value);
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, sanitizeForLog(item, depth + 1, seen)])
-    );
-  }
-
-  return redactSensitiveText(String(value));
-};
-
-const extractGeminiErrorLog = (error) => {
-  const status = error?.status
-    || error?.response?.status
-    || error?.cause?.status
-    || error?.errorDetails?.status
-    || null;
-
-  const code = error?.code
-    || error?.response?.data?.error?.status
-    || error?.response?.data?.error?.code
-    || error?.cause?.code
-    || null;
-
-  const errorBody = error?.response?.data
-    || error?.errorDetails
-    || error?.details
-    || error?.cause?.response?.data
-    || error?.cause
-    || null;
-
-  return {
-    name: error?.name || 'Error',
-    message: redactSensitiveText(error?.message || 'Unknown Gemini error'),
-    status,
-    code,
-    body: sanitizeForLog(errorBody),
-  };
-};
 
 export const generateChatResponse = async (userMessage) => {
   try {
@@ -88,7 +10,7 @@ export const generateChatResponse = async (userMessage) => {
     const events = await Event.find({ status: 'published' })
                               .sort({ startDateTime: 1 })
                               .limit(30)
-                              .lean(); // Dùng .lean() để dễ xử lý data
+                              .lean(); 
     
     // Lấy ID của các sự kiện này
     const eventIds = events.map(ev => ev._id);
@@ -145,7 +67,7 @@ export const generateChatResponse = async (userMessage) => {
       Nếu không có thông tin phù hợp, hãy xin lỗi khéo léo.
     `;
 
-    // 6. GỌI AI
+    // 6. GỌI AI (Sử dụng model 2.5-flash trên server Singapore)
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.5-flash", 
       systemInstruction: systemInstruction 
@@ -155,7 +77,8 @@ export const generateChatResponse = async (userMessage) => {
     return result.response.text();
 
   } catch (error) {
-    console.error('[Gemini API Error]', extractGeminiErrorLog(error));
+    // Log lỗi đơn giản, dễ nhìn của bản cũ
+    console.error("Lỗi khi gọi Google Gemini API:", error);
     throw new Error("Không thể xử lý yêu cầu AI lúc này.");
   }
 };
