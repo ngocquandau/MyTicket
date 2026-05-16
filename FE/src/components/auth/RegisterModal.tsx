@@ -5,6 +5,7 @@ import { Modal, Form, Input, DatePicker, Select } from 'antd';
 import { EyeInvisibleOutlined, EyeOutlined, CloseOutlined, CheckCircleFilled } from '@ant-design/icons';
 import logo from '../../assets/myticket_logo.png';
 import dayjs from "dayjs";
+import { validateEmail, validatePhoneNumber, validateName, validateAge, getValidationErrorMessage } from '../../utils/validationUtils';
 import OTPVerificationModal from './OTPVerificationModal';
 
 interface Props {
@@ -116,10 +117,38 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
               <div className="mb-6">
                 <h3 className="font-medium mb-4">Thông tin cá nhân *</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <Form.Item name="lastName" rules={[{ required: true, message: 'Vui lòng nhập họ' }]}>
+                  <Form.Item 
+                    name="lastName" 
+                    rules={[
+                      { required: true, message: 'Vui lòng nhập họ' },
+                      {
+                        validator(_, value) {
+                          if (!value) return Promise.resolve();
+                          if (!validateName(value)) {
+                            return Promise.reject(new Error(getValidationErrorMessage('lastName')));
+                          }
+                          return Promise.resolve();
+                        },
+                      }
+                    ]}
+                  >
                     <Input placeholder="Họ và tên lót" />
                   </Form.Item>
-                  <Form.Item name="firstName" rules={[{ required: true, message: 'Vui lòng nhập tên' }]}>
+                  <Form.Item 
+                    name="firstName" 
+                    rules={[
+                      { required: true, message: 'Vui lòng nhập tên' },
+                      {
+                        validator(_, value) {
+                          if (!value) return Promise.resolve();
+                          if (!validateName(value)) {
+                            return Promise.reject(new Error(getValidationErrorMessage('firstName')));
+                          }
+                          return Promise.resolve();
+                        },
+                      }
+                    ]}
+                  >
                     <Input placeholder="Tên" />
                   </Form.Item>
                 </div>
@@ -132,15 +161,51 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
                     </Select>
                   </Form.Item>
 
-                  <Form.Item name="birthDate">
-                    <DatePicker placeholder="Ngày sinh: dd/mm/yyyy"
+                  <Form.Item 
+                    name="birthDate"
+                    rules={[
+                      {
+                        validator(_, value) {
+                          if (!value) return Promise.resolve();
+                          if (!validateAge(value)) {
+                            return Promise.reject(new Error(getValidationErrorMessage('birthDate')));
+                          }
+                          return Promise.resolve();
+                        },
+                      }
+                    ]}
+                  >
+                    <DatePicker 
+                      placeholder="Ngày sinh: dd/mm/yyyy"
                       format="DD/MM/YYYY"
-                      className="w-full" />
+                      className="w-full"
+                      defaultPickerValue={dayjs().subtract(16, 'years')}
+                      disabledDate={(current) => {
+                        if (!current) return false;
+                        // Chỉ cho phép chọn ngày sao cho đủ 16 tuổi
+                        const today = dayjs();
+                        const minDate = today.subtract(16, 'years');
+                        return current.isAfter(minDate, 'day');
+                      }}
+                    />
                   </Form.Item>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <Form.Item name="phone">
+                  <Form.Item 
+                    name="phone"
+                    rules={[
+                      {
+                        validator(_, value) {
+                          if (!value) return Promise.resolve();
+                          if (!validatePhoneNumber(value)) {
+                            return Promise.reject(new Error(getValidationErrorMessage('phone')));
+                          }
+                          return Promise.resolve();
+                        },
+                      }
+                    ]}
+                  >
                     <Input placeholder="Số điện thoại" />
                   </Form.Item>
                 </div>
@@ -150,7 +215,21 @@ const RegisterModal: React.FC<Props> = ({ open, onClose, onLoginClick }) => {
               <div className="mb-6">
                 <h3 className="font-medium mb-4">Thông tin tài khoản *</h3>
 
-                <Form.Item name="email" rules={[{ required: true, type: 'email', message: 'Vui lòng nhập Email hợp lệ' }]}>
+                <Form.Item 
+                  name="email" 
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập Email' },
+                    {
+                      validator(_, value) {
+                        if (!value) return Promise.resolve();
+                        if (!validateEmail(value)) {
+                          return Promise.reject(new Error(getValidationErrorMessage('email')));
+                        }
+                        return Promise.resolve();
+                      },
+                    }
+                  ]}
+                >
                   <Input placeholder="Địa chỉ Email" />
                 </Form.Item>
 
